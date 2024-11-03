@@ -1,4 +1,6 @@
-use rusty_charm_framework::{ActionResult, Event, Framework, State, Status};
+#![allow(dead_code)]
+#![allow(unused_variables)]
+use rusty_charm_framework::{execute, ActionResult, Event, State, Status};
 
 enum Action {
     Validate { regex: String, serial: bool },
@@ -6,6 +8,7 @@ enum Action {
 }
 
 struct Config {
+    /// The region name
     region: String,
 }
 
@@ -17,8 +20,8 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
             } else {
                 return Status::Active("".to_string());
             }
-        },
-        Event::Install => todo!(),
+        }
+        _ => todo!(),
     }
 }
 
@@ -30,7 +33,5 @@ fn action_handler(state: State<Config>, action: Action) -> ActionResult {
 }
 
 fn main() {
-    let framework = Framework::new(event_handler, action_handler);
-
-    framework.run();
+    execute(event_handler, action_handler);
 }
