@@ -2,11 +2,15 @@
 // No framework lib code should go here.
 #![allow(dead_code)]
 #![allow(unused_variables)]
-use rusty_charm_framework::{execute, log, status, ActionResult, Event, State, Status};
+use rusty_charm_framework::{execute, log, status, status::Status, ActionResult, Event, State};
 
 enum Action {
-    Validate { regex: String, serial: bool },
-    GetLists,
+    Test {
+        name: String,
+        dry_run: bool,
+        param_with_default: String,
+    },
+    Noop,
 }
 
 use serde::Deserialize;
@@ -28,9 +32,7 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
             }
         }
         Event::Install => {
-            // TODO: return status only or allow explicitly setting?
-            status::active("hi");
-            return Status::Blocked("test".to_string());
+            status::active("hi".to_owned());
         }
         _ => {}
     }
@@ -40,8 +42,12 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
 
 fn action_handler(state: State<Config>, action: Action) -> ActionResult {
     match action {
-        Action::Validate { regex, serial } => todo!(),
-        Action::GetLists => todo!(),
+        Action::Test {
+            name,
+            dry_run,
+            param_with_default,
+        } => todo!(),
+        Action::Noop => todo!(),
     }
 }
 

@@ -1,0 +1,16 @@
+test:
+  description: run a test
+  params:
+    name:
+      type: string
+      description: test name to run
+    param-with-default:
+      type: string
+      description: example param
+      default: something
+    dry-run:
+      type: boolean
+      description: do a dry run?
+      default: false
+noop:
+  description: do nothing

@@ -6,12 +6,10 @@
 // TODO: encode all metadata.yaml content in the Framework
 // TODO: figure out error handling
 
+pub mod action;
+pub mod config;
 pub mod log;
 pub mod status;
-
-use std::process::Command;
-
-use serde_json;
 
 // ref. https://github.com/canonical/charm-events
 pub enum Event {
@@ -52,54 +50,56 @@ pub enum ActionResult {
     Failure,
 }
 
-pub enum Status {
-    Active(String),
-    Blocked(String),
-    Error,
-    Waiting(String),
-}
-
-// TODO: drop the unwraps, figure out error handling/propogating
-fn config<C>() -> C
-where
-    C: serde::de::DeserializeOwned,
-{
-    let output = Command::new("config-get")
-        .args(["--format", "json", "--all"])
-        .output()
-        .expect("failed to execute config-get");
-    serde_json::from_slice::<C>(&output.stdout).unwrap()
-}
-
 /// Process the current event, hook, or action from the environment,
 /// populating local state, and calling the handler functions as appropriate.
+/// `event_handler` must return a status - this status will be the final status set before
+/// execution of the hook finishes.
+/// The event handler may explicitly set a status during execution.
+/// This may be useful in the case of a long running hook (eg. set a maintenance ongoing status at
+/// the beginning).
 pub fn execute<C, A>(
-    event_handler: fn(State<C>, Event) -> Status,
+    event_handler: fn(State<C>, Event) -> status::Status,
     action_handler: fn(State<C>, A) -> ActionResult,
 ) where
     C: serde::de::DeserializeOwned,
 {
-    // Print all environment variables.
+    // debug log all env vars for testing purposes
     for (key, value) in std::env::vars() {
         log::debug(format!("{key}: {value}").as_str());
     }
 
-    let hook = std::env::var("JUJU_HOOK_NAME").expect("JUJU_HOOK_NAME unexpectedly unset");
-    log::info(format!("running handlers for {hook} hook").as_str());
-
-    let event = match hook.as_str() {
-        "install" => Event::Install,
-        "config-changed" => Event::ConfigChanged,
-        "remove" => Event::Remove,
-        "update-status" => Event::UpdateStatus,
-        "upgrade-charm" => Event::UpgradeCharm,
-        _ => unimplemented!(),
+    let state: State<C> = State::<C> {
+        config: config::config(),
     };
 
-    let state: State<C> = State::<C> { config: config() };
-    event_handler(state, event);
+    // ref. https://juju.is/docs/juju/charm-environment-variables for logic
+    let hook = std::env::var("JUJU_HOOK_NAME").unwrap_or("".to_owned());
+    if !hook.is_empty() {
+        log::info(format!("running handlers for {hook} hook").as_str());
 
-    // TODO: action_handler(state, todo!());
+        let event = match hook.as_str() {
+            "install" => Event::Install,
+            "config-changed" => Event::ConfigChanged,
+            "remove" => Event::Remove,
+            "update-status" => Event::UpdateStatus,
+            "upgrade-charm" => Event::UpgradeCharm,
+            _ => unimplemented!(),
+        };
+
+        event_handler(state, event);
+        return;
+    }
+
+    let action = std::env::var("JUJU_ACTION_NAME").unwrap_or("".to_owned());
+    if !action.is_empty() {
+        log::info(format!("running handler for {action} action").as_str());
+
+        // TODO: figure out how to deserialise action name + params into the user-provided
+        // `A` action enum.
+        log::info(format!("{}", action::params()).as_str());
+        action_handler(state, todo!());
+        return;
+    }
 }
 
 // TODO: macro to write the config.yaml, etc. to file at compile time,

@@ -1,39 +1,43 @@
-use std::fmt::{Display, Formatter};
 use std::process::Command;
 
 // Error is also a status, but not one that can be directly set.
 pub enum Status {
-    Active,
-    Blocked,
-    Maintenance,
-    Waiting,
+    Active(String),
+    Blocked(String),
+    Maintenance(String),
+    Waiting(String),
 }
 
-impl Display for Status {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Status::Active => "active",
-                Status::Blocked => "blocked",
-                Status::Maintenance => "maintenance",
-                Status::Waiting => "waiting",
-            }
-        )
+impl Status {
+    pub fn name(&self) -> &str {
+        match self {
+            Status::Active(_) => "active",
+            Status::Blocked(_) => "blocked",
+            Status::Maintenance(_) => "maintenance",
+            Status::Waiting(_) => "waiting",
+        }
+    }
+
+    fn msg(&self) -> &str {
+        match self {
+            Status::Active(x)
+            | Status::Blocked(x)
+            | Status::Waiting(x)
+            | Status::Maintenance(x) => x.as_str(),
+        }
     }
 }
 
 // TODO: drop the '.expect', figure out error handling/propogating
-fn set(status: Status, msg: &str) {
+fn set(status: Status) {
     Command::new("status-set")
-        .args([status.to_string().as_str(), msg])
+        .args([status.name(), status.msg()])
         .output()
         .expect("failed to execute status-set");
 }
 
-pub fn active(msg: &str) {
-    set(Status::Active, msg)
+pub fn active(msg: String) {
+    set(Status::Active(msg))
 }
 
 // TODO: fns for other statuses
