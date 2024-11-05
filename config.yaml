@@ -1,0 +1,5 @@
+options:
+  region:
+    type: string
+    description: test region to use
+    default: RegionOne

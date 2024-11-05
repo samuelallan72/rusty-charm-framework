@@ -9,7 +9,9 @@
 pub mod log;
 pub mod status;
 
-use std::collections::HashMap;
+use std::process::Command;
+
+use serde_json;
 
 // ref. https://github.com/canonical/charm-events
 pub enum Event {
@@ -40,10 +42,9 @@ pub enum Event {
     UpgradeCharm,
 }
 
+// TODO: application data bag, unit data bag, relations, etc.
 pub struct State<C> {
     pub config: C,
-    pub relations: HashMap<String, String>,
-    // TODO: application data bag, unit data bag
 }
 
 pub enum ActionResult {
@@ -58,12 +59,26 @@ pub enum Status {
     Waiting(String),
 }
 
+// TODO: drop the unwraps, figure out error handling/propogating
+fn config<C>() -> C
+where
+    C: serde::de::DeserializeOwned,
+{
+    let output = Command::new("config-get")
+        .args(["--format", "json", "--all"])
+        .output()
+        .expect("failed to execute config-get");
+    serde_json::from_slice::<C>(&output.stdout).unwrap()
+}
+
 /// Process the current event, hook, or action from the environment,
 /// populating local state, and calling the handler functions as appropriate.
 pub fn execute<C, A>(
     event_handler: fn(State<C>, Event) -> Status,
     action_handler: fn(State<C>, A) -> ActionResult,
-) {
+) where
+    C: serde::de::DeserializeOwned,
+{
     // Print all environment variables.
     for (key, value) in std::env::vars() {
         log::debug(format!("{key}: {value}").as_str());
@@ -72,15 +87,19 @@ pub fn execute<C, A>(
     let hook = std::env::var("JUJU_HOOK_NAME").expect("JUJU_HOOK_NAME unexpectedly unset");
     log::info(format!("running handlers for {hook} hook").as_str());
 
-    status::active("hi");
+    let event = match hook.as_str() {
+        "install" => Event::Install,
+        "config-changed" => Event::ConfigChanged,
+        "remove" => Event::Remove,
+        "update-status" => Event::UpdateStatus,
+        "upgrade-charm" => Event::UpgradeCharm,
+        _ => unimplemented!(),
+    };
 
-    // let state: State<C> = todo!();
-    // let event: Option<Event> = todo!();
-    // if let Some(event) = event {
-    //     event_handler(state, event);
-    // } else {
-    //     action_handler(state, todo!());
-    // }
+    let state: State<C> = State::<C> { config: config() };
+    event_handler(state, event);
+
+    // TODO: action_handler(state, todo!());
 }
 
 // TODO: macro to write the config.yaml, etc. to file at compile time,

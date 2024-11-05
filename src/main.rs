@@ -1,18 +1,24 @@
+// This is a test charm using the charm framework.
+// No framework lib code should go here.
 #![allow(dead_code)]
 #![allow(unused_variables)]
-use rusty_charm_framework::{execute, ActionResult, Event, State, Status};
+use rusty_charm_framework::{execute, log, status, ActionResult, Event, State, Status};
 
 enum Action {
     Validate { regex: String, serial: bool },
     GetLists,
 }
 
+use serde::Deserialize;
+
+#[derive(Deserialize)]
 struct Config {
     /// The region name
     region: String,
 }
 
 fn event_handler(state: State<Config>, event: Event) -> Status {
+    log::info(format!("region config = {}", state.config.region).as_str());
     match event {
         Event::UpdateStatus => {
             if state.config.region.is_empty() {
@@ -21,8 +27,15 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
                 return Status::Active("".to_string());
             }
         }
-        _ => todo!(),
+        Event::Install => {
+            // TODO: return status only or allow explicitly setting?
+            status::active("hi");
+            return Status::Blocked("test".to_string());
+        }
+        _ => {}
     }
+
+    return Status::Active("all good (probably)".to_string());
 }
 
 fn action_handler(state: State<Config>, action: Action) -> ActionResult {
