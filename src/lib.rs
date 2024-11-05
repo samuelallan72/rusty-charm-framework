@@ -4,9 +4,12 @@
 // TODO: relations
 // TODO: logging
 // TODO: encode all metadata.yaml content in the Framework
+// TODO: figure out error handling
+
+pub mod log;
+pub mod status;
 
 use std::collections::HashMap;
-use std::process::Command;
 
 // ref. https://github.com/canonical/charm-events
 pub enum Event {
@@ -63,20 +66,13 @@ pub fn execute<C, A>(
 ) {
     // Print all environment variables.
     for (key, value) in std::env::vars() {
-        println!("{key}: {value}");
-
-        Command::new("juju-log")
-            .args([format!("{key} -> {value}").as_str()])
-            .output()
-            .expect("failed to execute juju-log");
+        log::debug(format!("{key}: {value}").as_str());
     }
 
     let hook = std::env::var("JUJU_HOOK_NAME").expect("JUJU_HOOK_NAME unexpectedly unset");
+    log::info(format!("running handlers for {hook} hook").as_str());
 
-    Command::new("status-set")
-        .args(["active", format!("last ran {hook} hook").as_str()])
-        .output()
-        .expect("failed to execute status-set");
+    status::active("hi");
 
     // let state: State<C> = todo!();
     // let event: Option<Event> = todo!();
