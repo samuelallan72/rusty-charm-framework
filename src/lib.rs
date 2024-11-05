@@ -6,6 +6,7 @@
 // TODO: encode all metadata.yaml content in the Framework
 
 use std::collections::HashMap;
+use std::process::Command;
 
 // ref. https://github.com/canonical/charm-events
 pub enum Event {
@@ -60,13 +61,30 @@ pub fn execute<C, A>(
     event_handler: fn(State<C>, Event) -> Status,
     action_handler: fn(State<C>, A) -> ActionResult,
 ) {
-    let state: State<C> = todo!();
-    let event: Option<Event> = todo!();
-    if let Some(event) = event {
-        event_handler(state, event);
-    } else {
-        action_handler(state, todo!());
+    // Print all environment variables.
+    for (key, value) in std::env::vars() {
+        println!("{key}: {value}");
+
+        Command::new("juju-log")
+            .args([format!("{key} -> {value}").as_str()])
+            .output()
+            .expect("failed to execute juju-log");
     }
+
+    let hook = std::env::var("JUJU_HOOK_NAME").expect("JUJU_HOOK_NAME unexpectedly unset");
+
+    Command::new("status-set")
+        .args(["active", format!("last ran {hook} hook").as_str()])
+        .output()
+        .expect("failed to execute status-set");
+
+    // let state: State<C> = todo!();
+    // let event: Option<Event> = todo!();
+    // if let Some(event) = event {
+    //     event_handler(state, event);
+    // } else {
+    //     action_handler(state, todo!());
+    // }
 }
 
 // TODO: macro to write the config.yaml, etc. to file at compile time,

@@ -1,0 +1,23 @@
+type: charm
+name: rusty
+summary: test charm
+description: test charm description
+
+bases:
+  - build-on:
+    - name: ubuntu
+      channel: "22.04"
+      architectures:
+        - amd64
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
+        architectures:
+          - amd64
+
+parts:
+  build:
+    plugin: rust
+    source: .
+    organize:
+      bin/rusty-charm-framework: dispatch
