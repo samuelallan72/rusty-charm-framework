@@ -38,3 +38,11 @@ pub fn debug(msg: &str) {
 pub fn info(msg: &str) {
     log(msg, LogLevel::Info)
 }
+
+pub fn warn(msg: &str) {
+    log(msg, LogLevel::Warning)
+}
+
+pub fn error(msg: &str) {
+    log(msg, LogLevel::Error)
+}

@@ -2,9 +2,10 @@
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 // TODO: relations
-// TODO: logging
 // TODO: encode all metadata.yaml content in the Framework
 // TODO: figure out error handling
+
+use serde_json::{Map, Value};
 
 pub mod action;
 pub mod config;
@@ -62,6 +63,7 @@ pub fn execute<C, A>(
     action_handler: fn(State<C>, A) -> ActionResult,
 ) where
     C: serde::de::DeserializeOwned,
+    A: serde::de::DeserializeOwned,
 {
     // debug log all env vars for testing purposes
     for (key, value) in std::env::vars() {
@@ -90,14 +92,17 @@ pub fn execute<C, A>(
         return;
     }
 
-    let action = std::env::var("JUJU_ACTION_NAME").unwrap_or("".to_owned());
-    if !action.is_empty() {
-        log::info(format!("running handler for {action} action").as_str());
+    let action_name = std::env::var("JUJU_ACTION_NAME").unwrap_or("".to_owned());
+    if !action_name.is_empty() {
+        log::debug(format!("running handler for {action_name} action").as_str());
+        let action_value = Value::Object({
+            let mut map = Map::new();
+            map.insert(action_name, action::params());
+            map
+        });
+        log::debug(format!("raw action: {}", action_value).as_str());
 
-        // TODO: figure out how to deserialise action name + params into the user-provided
-        // `A` action enum.
-        log::info(format!("{}", action::params()).as_str());
-        action_handler(state, todo!());
+        action_handler(state, serde_json::from_value(action_value).unwrap());
         return;
     }
 }

@@ -3,17 +3,22 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 use rusty_charm_framework::{execute, log, status, status::Status, ActionResult, Event, State};
+use serde::Deserialize;
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+#[serde(rename_all_fields(deserialize = "kebab-case"))]
 enum Action {
     Test {
-        name: String,
+        name: Option<String>,
         dry_run: bool,
         param_with_default: String,
     },
-    Noop,
+    // NOTE: currently with the way of building an intermediate representation of the action
+    // before deserialising, we must use struct variants, not bare variants (eg. `Noop` is not
+    // possible, but `Noop {}` is fine).
+    Noop {},
 }
-
-use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct Config {
@@ -41,13 +46,14 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
 }
 
 fn action_handler(state: State<Config>, action: Action) -> ActionResult {
+    log::debug(&format!("deserialised action: {:?}", action));
     match action {
         Action::Test {
             name,
             dry_run,
             param_with_default,
         } => todo!(),
-        Action::Noop => todo!(),
+        Action::Noop {} => todo!(),
     }
 }
 
