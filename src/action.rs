@@ -9,3 +9,10 @@ pub(crate) fn params() -> Value {
         .expect("failed to execute action-get");
     serde_json::from_slice::<Value>(&output.stdout).unwrap()
 }
+
+pub fn log(msg: &str) {
+    let output = Command::new("action-log")
+        .args([msg])
+        .output()
+        .expect("failed to execute action-log");
+}

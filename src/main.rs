@@ -2,8 +2,13 @@
 // No framework lib code should go here.
 #![allow(dead_code)]
 #![allow(unused_variables)]
-use rusty_charm_framework::{execute, log, status, status::Status, ActionResult, Event, State};
+use rusty_charm_framework::{
+    action, execute, log,
+    status::{self, Status},
+    ActionResult, Event, State,
+};
 use serde::Deserialize;
+use std::{thread, time};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
@@ -15,9 +20,9 @@ enum Action {
         param_with_default: String,
     },
     // NOTE: currently with the way of building an intermediate representation of the action
-    // before deserialising, we must use struct variants, not bare variants (eg. `Noop` is not
-    // possible, but `Noop {}` is fine).
-    Noop {},
+    // before deserialising, we must use struct variants, not bare variants (eg. `Log` is not
+    // possible, but `Log {}` is fine).
+    Log {},
 }
 
 #[derive(Deserialize)]
@@ -45,15 +50,27 @@ fn event_handler(state: State<Config>, event: Event) -> Status {
     return Status::Active("all good (probably)".to_string());
 }
 
-fn action_handler(state: State<Config>, action: Action) -> ActionResult {
-    log::debug(&format!("deserialised action: {:?}", action));
-    match action {
+fn action_handler(state: State<Config>, action_: Action) -> ActionResult {
+    log::debug(&format!("deserialised action: {:?}", action_));
+    match action_ {
         Action::Test {
             name,
             dry_run,
             param_with_default,
         } => todo!(),
-        Action::Noop {} => todo!(),
+        Action::Log {} => {
+            action::log("Logging a message at the beginning of the handler.");
+
+            action::log("Sleeping for 1 second");
+            thread::sleep(time::Duration::from_secs(1));
+
+            action::log("Sleeping for another second");
+            thread::sleep(time::Duration::from_secs(1));
+
+            action::log("Done!");
+
+            ActionResult::Success
+        }
     }
 }
 

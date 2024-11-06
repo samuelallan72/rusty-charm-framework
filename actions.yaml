@@ -12,5 +12,5 @@ test:
       type: boolean
       description: do a dry run?
       default: false
-noop:
-  description: do nothing
+log:
+  description: test action logging
