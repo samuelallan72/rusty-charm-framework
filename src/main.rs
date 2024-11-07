@@ -3,9 +3,9 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 use rusty_charm_framework::{
-    action, execute, log,
-    status::{self, Status},
-    ActionResult, Event, State,
+    backend::{Backend, RealBackend},
+    types::{ActionResult, Event, Status},
+    Framework, Model,
 };
 use serde::Deserialize;
 use std::{thread, time};
@@ -31,43 +31,49 @@ struct Config {
     region: String,
 }
 
-fn event_handler(state: State<Config>, event: Event) -> Status {
-    log::info(format!("region config = {}", state.config.region).as_str());
+fn event_handler(model: Model<impl Backend, Config>, event: Event) -> Status {
+    model
+        .backend
+        .info(format!("region config = {}", model.config.region).as_str());
     match event {
         Event::UpdateStatus => {
-            if state.config.region.is_empty() {
-                return Status::Blocked("region option cannot be empty".to_string());
+            if model.config.region.is_empty() {
+                return Status::Blocked("region option cannot be empty");
             } else {
-                return Status::Active("".to_string());
+                return Status::Active("");
             }
         }
         Event::Install => {
-            status::active("hi".to_owned());
+            model.backend.active("hi");
         }
         _ => {}
     }
 
-    return Status::Active("all good (probably)".to_string());
+    return Status::Active("all good (probably)");
 }
 
-fn action_handler(state: State<Config>, action_: Action) -> ActionResult {
-    log::debug(&format!("deserialised action: {:?}", action_));
-    match action_ {
+fn action_handler(model: Model<impl Backend, Config>, action: Action) -> ActionResult {
+    model
+        .backend
+        .debug(&format!("deserialised action: {:?}", action));
+    match action {
         Action::Test {
             name,
             dry_run,
             param_with_default,
         } => todo!(),
         Action::Log {} => {
-            action::log("Logging a message at the beginning of the handler.");
+            model
+                .backend
+                .action_log("Logging a message at the beginning of the handler.");
 
-            action::log("Sleeping for 1 second");
+            model.backend.action_log("Sleeping for 1 second");
             thread::sleep(time::Duration::from_secs(1));
 
-            action::log("Sleeping for another second");
+            model.backend.action_log("Sleeping for another second");
             thread::sleep(time::Duration::from_secs(1));
 
-            action::log("Done!");
+            model.backend.action_log("Done!");
 
             ActionResult::Success
         }
@@ -75,5 +81,7 @@ fn action_handler(state: State<Config>, action_: Action) -> ActionResult {
 }
 
 fn main() {
-    execute(event_handler, action_handler);
+    // dependency injection for the framework for easier unit testing
+    let charm = Framework::new(RealBackend {}, event_handler, action_handler);
+    charm.execute();
 }
