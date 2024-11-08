@@ -3,6 +3,8 @@ use serde_json::{self, Map, Value};
 use std::process::Command;
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
+/// The charm event handlers should use the `CharmBackend` provided by the state;
+/// they should not use this lower level backend.
 pub trait Backend {
     fn action_name(&self) -> String;
     fn hook_name(&self) -> String;
