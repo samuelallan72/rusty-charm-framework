@@ -79,7 +79,17 @@ where
                 LogLevel::Debug,
             );
             let action: A = self.backend.action(action_name.as_str());
-            (self.action_handler)(state, action);
+            let result = (self.action_handler)(state, action);
+
+            match result {
+                Ok(data) => {
+                    self.backend.set_action_result(data);
+                }
+                Err((msg, data)) => {
+                    self.backend.set_action_fail(&msg);
+                    self.backend.set_action_result(data);
+                }
+            }
         }
     }
 }

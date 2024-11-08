@@ -1,11 +1,15 @@
-use crate::types::{LogLevel, Status};
+use crate::types::{
+    action_result_to_dotted_values, ActionResultKey, ActionValue, LogLevel, Status,
+};
 use serde_json::{self, Map, Value};
-use std::process::Command;
+use std::{collections::HashMap, process::Command};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
+    fn set_action_fail(&self, msg: &str);
+    fn set_action_result(&self, data: HashMap<ActionResultKey, ActionValue>);
     fn action_name(&self) -> String;
     fn hook_name(&self) -> String;
     /// Log a message to the juju log, at the desired log level.
@@ -87,6 +91,23 @@ impl Backend for JujuBackend {
 
     fn action_name(&self) -> String {
         std::env::var("JUJU_ACTION_NAME").unwrap_or("".to_owned())
+    }
+
+    fn set_action_result(&self, data: HashMap<ActionResultKey, ActionValue>) {
+        if data.is_empty() {
+            return;
+        }
+        Command::new("action-set")
+            .args(action_result_to_dotted_values(data))
+            .output()
+            .expect("failed to execute action-set");
+    }
+
+    fn set_action_fail(&self, msg: &str) {
+        Command::new("action-fail")
+            .args([msg])
+            .output()
+            .expect("failed to execute action-set");
     }
 }
 

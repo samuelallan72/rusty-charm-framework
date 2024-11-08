@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::{Display, Formatter},
     sync::OnceLock,
 };
@@ -84,11 +85,16 @@ pub enum Event {
     UpgradeCharm,
 }
 
-pub enum ActionResult {
-    Success,
-    Failure,
+#[derive(Debug)]
+pub enum ActionValue {
+    Value(String),
+    Nested(HashMap<ActionResultKey, ActionValue>),
 }
 
+pub type ActionResult =
+    Result<HashMap<ActionResultKey, ActionValue>, (String, HashMap<ActionResultKey, ActionValue>)>;
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ActionResultKey(String);
 
 static ACTION_KEY_REGEX_CELL: OnceLock<Regex> = OnceLock::new();
@@ -104,24 +110,20 @@ impl TryFrom<String> for ActionResultKey {
     // "stdout", "stdout-encoding", "stderr", "stderr-encoding".
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let reserved = ["stdout", "stdout-encoding", "stderr", "stderr-encoding"];
-        if reserved.contains(&value.as_str()) {
-            return Err(format!(
-                "key must not be one of these reserved values: {reserved:?}"
-            ));
-        }
-
         let action_key_regex = ACTION_KEY_REGEX_CELL
             .get_or_init(|| Regex::new(r"[a-z](:?[a-z0-9.-]*[a-z])*").unwrap());
 
-        for s in value.split('.') {
-            if s.is_empty() {
-                return Err("Empty key found. Keys must contain at least one character.".to_owned());
-            } else if !action_key_regex.is_match(s) {
-                return Err(format!("{:?} is invalid. Keys must start and end with lowercase alphanumeric, and contain only lowercase alphanumeric and periods.", s));
-            }
+        if reserved.contains(&value.as_str()) {
+            Err(format!(
+                "key must not be one of these reserved values: {reserved:?}"
+            ))
+        } else if value.is_empty() {
+            Err("Empty key found. Keys must contain at least one character.".to_owned())
+        } else if !action_key_regex.is_match(&value) {
+            Err(format!("{:?} is invalid. Keys must start and end with lowercase alphanumeric, and contain only lowercase alphanumeric and hyphens.", value))
+        } else {
+            Ok(Self(value))
         }
-
-        Ok(Self(value))
     }
 }
 
@@ -129,4 +131,27 @@ impl ActionResultKey {
     pub fn value(self) -> String {
         self.0
     }
+}
+
+// Convert a custom nested hashmap into path.to.key=value notation for juju action-set.
+pub(crate) fn action_result_to_dotted_values(
+    data: HashMap<ActionResultKey, ActionValue>,
+) -> Vec<String> {
+    let mut result_values = vec![];
+    for (key, value) in data.into_iter() {
+        let prefix: String = key.value();
+
+        match value {
+            ActionValue::Value(value) => {
+                result_values.push(format!("{prefix}={value}"));
+            }
+            ActionValue::Nested(hash_map) => {
+                for partial_value in action_result_to_dotted_values(hash_map) {
+                    result_values.push(format!("{prefix}.{partial_value}"));
+                }
+            }
+        }
+    }
+
+    result_values
 }

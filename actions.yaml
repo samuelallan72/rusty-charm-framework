@@ -8,9 +8,9 @@ echo-params:
       type: string
       description: example param
       default: something
-    bool:
+    fail:
       type: boolean
-      description: example boolean variable, defaulting to false
+      description: set action failure state with a message if true
       default: false
 log:
   description: test action logging

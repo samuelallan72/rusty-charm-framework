@@ -2,11 +2,11 @@
 // No framework lib code should go here.
 use rusty_charm_framework::{
     backend::{Backend, JujuBackend},
-    types::{ActionResult, Event, Status},
+    types::{ActionResult, ActionResultKey, ActionValue, Event, Status},
     Framework, Model,
 };
 use serde::Deserialize;
-use std::{thread, time};
+use std::{collections::HashMap, thread, time};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
@@ -15,7 +15,7 @@ enum Action {
     EchoParams {
         string: Option<String>,
         string_with_default: String,
-        bool: bool,
+        fail: bool,
     },
     // NOTE: currently with the way of building an intermediate representation of the action
     // before deserialising, we must use struct variants, not bare variants (eg. `Log` is not
@@ -68,19 +68,71 @@ fn action_handler(model: Model<impl Backend, Config>, action: Action) -> ActionR
 
             model.backend.action_log("Done!");
 
-            ActionResult::Success
+            Ok(HashMap::new())
         }
         Action::EchoParams {
             string,
             string_with_default,
-            bool,
+            fail,
         } => {
             model.backend.action_log(&format!("string = {:?}", string));
             model
                 .backend
                 .action_log(&format!("string-with-default = {:?}", string_with_default));
-            model.backend.action_log(&format!("bool = {:?}", bool));
-            ActionResult::Success
+            model.backend.action_log(&format!("fail = {:?}", fail));
+
+            let mut data = HashMap::new();
+
+            data.insert(
+                ActionResultKey::try_from("params".to_owned()).unwrap(),
+                ActionValue::Nested({
+                    let mut inner = HashMap::new();
+                    inner.insert(
+                        ActionResultKey::try_from("string-with-default".to_owned()).unwrap(),
+                        ActionValue::Value(string_with_default),
+                    );
+                    if let Some(string) = string {
+                        inner.insert(
+                            ActionResultKey::try_from("string".to_owned()).unwrap(),
+                            ActionValue::Value(string),
+                        );
+                    }
+                    inner.insert(
+                        ActionResultKey::try_from("fail".to_owned()).unwrap(),
+                        ActionValue::Value(format!("{fail}")),
+                    );
+                    inner
+                }),
+            );
+
+            data.insert(
+                ActionResultKey::try_from("example-nesting".to_owned()).unwrap(),
+                ActionValue::Nested({
+                    let mut inner = HashMap::new();
+                    inner.insert(
+                        ActionResultKey::try_from("nested".to_owned()).unwrap(),
+                        ActionValue::Nested({
+                            let mut inner2 = HashMap::new();
+                            inner2.insert(
+                                ActionResultKey::try_from("level2".to_owned()).unwrap(),
+                                ActionValue::Value("example value 2".to_owned()),
+                            );
+                            inner2
+                        }),
+                    );
+                    inner.insert(
+                        ActionResultKey::try_from("level1".to_owned()).unwrap(),
+                        ActionValue::Value("example value 1".to_owned()),
+                    );
+                    inner
+                }),
+            );
+
+            if fail {
+                Err(("this is the requested failure message".to_owned(), data))
+            } else {
+                Ok(data)
+            }
         }
     }
 }
