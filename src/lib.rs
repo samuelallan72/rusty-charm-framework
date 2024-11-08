@@ -1,19 +1,11 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unreachable_code)]
-// TODO: relations
-// TODO: encode all metadata.yaml content in the Framework
-// TODO: figure out error handling
-
 pub mod backend;
 pub mod types;
 
-use types::Event;
+use types::{Event, LogLevel};
 
-// TODO: application data bag, unit data bag, relations, etc.
 pub struct Model<'a, B, C> {
     pub config: C,
-    pub backend: &'a B,
+    pub backend: backend::CharmBackend<'a, B>,
 }
 
 pub struct Framework<A, B, C> {
@@ -50,25 +42,24 @@ where
     pub fn execute(self) {
         // debug log all env vars for testing purposes
         for (key, value) in std::env::vars() {
-            self.backend.debug(format!("{key}: {value}").as_str());
+            self.backend
+                .log(format!("{key}: {value}").as_str(), LogLevel::Debug);
         }
 
         let state: Model<B, C> = Model::<B, C> {
             config: self.backend.config(),
-            // TODO: the backend that the charm gets should be a smaller scoped version
-            // of the full backend - eg. with config() and action() removed - maybe
-            // a wrapper trait that passes through to the real backend?
-            // Or is that unnecessary? How does this work with mocking for unit tests?
-            backend: &self.backend,
+            backend: backend::CharmBackend::new(&self.backend),
         };
 
         // ref. https://juju.is/docs/juju/charm-environment-variables for logic
-        let hook = std::env::var("JUJU_HOOK_NAME").unwrap_or("".to_owned());
-        if !hook.is_empty() {
-            self.backend
-                .info(format!("running handlers for {hook} hook").as_str());
+        let hook_name = self.backend.hook_name();
+        if !hook_name.is_empty() {
+            self.backend.log(
+                format!("running handlers for {hook_name} hook").as_str(),
+                LogLevel::Debug,
+            );
 
-            let event = match hook.as_str() {
+            let event = match hook_name.as_str() {
                 "install" => Event::Install,
                 "config-changed" => Event::ConfigChanged,
                 "remove" => Event::Remove,
@@ -81,19 +72,14 @@ where
             return;
         }
 
-        let action_name = std::env::var("JUJU_ACTION_NAME").unwrap_or("".to_owned());
+        let action_name = self.backend.action_name();
         if !action_name.is_empty() {
-            self.backend
-                .debug(format!("running handler for {action_name} action").as_str());
+            self.backend.log(
+                format!("running handler for {action_name} action").as_str(),
+                LogLevel::Debug,
+            );
             let action: A = self.backend.action(action_name.as_str());
             (self.action_handler)(state, action);
         }
     }
 }
-
-// TODO: macro to write the config.yaml, etc. to file at compile time,
-// so the code is the source of truth.
-// #[proc_macro_attribute]
-// pub fn write_config(_args: TokenStream, input: TokenStream) -> TokenStream  {
-//     todo!()
-// }

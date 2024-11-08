@@ -1,16 +1,16 @@
-test:
+echo-params:
   description: run a test
   params:
-    name:
+    string:
       type: string
-      description: test name to run
-    param-with-default:
+      description: string param with no default
+    string-with-default:
       type: string
       description: example param
       default: something
-    dry-run:
+    bool:
       type: boolean
-      description: do a dry run?
+      description: example boolean variable, defaulting to false
       default: false
 log:
   description: test action logging

@@ -28,7 +28,7 @@ impl<'a> Status<'a> {
     }
 }
 
-pub(crate) enum LogLevel {
+pub enum LogLevel {
     Debug,
     Info,
     Warning,
