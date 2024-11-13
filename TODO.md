@@ -27,3 +27,24 @@ pub fn write_config(_args: TokenStream, input: TokenStream) -> TokenStream  {
 ## dig into all the juju hook tools
 
 and write up docs for what, how, why for all the functions here
+
+## support secrets
+
+## support k8s
+
+## support storage management
+
+## support network tools
+
+- unit-get
+- network-get
+
+## support payloads
+
+## support juju metrics
+
+- add-metric
+
+## support server-side state
+
+- `state-*`
