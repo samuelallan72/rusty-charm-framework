@@ -23,3 +23,7 @@ pub fn write_config(_args: TokenStream, input: TokenStream) -> TokenStream  {
     todo!()
 }
 ```
+
+## dig into all the juju hook tools
+
+and write up docs for what, how, why for all the functions here

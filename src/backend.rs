@@ -37,6 +37,7 @@ pub trait Backend {
     fn get_unit_state(&self) -> HashMap<String, String>;
     fn set_unit_state(&self, key: &str, value: &str);
     fn delete_unit_state(&self, key: &str);
+    fn resource_path(&self, name: &str) -> String;
 }
 
 /// The real implementation for the backend.
@@ -186,6 +187,11 @@ impl Backend for JujuBackend {
     fn delete_unit_state(&self, key: &str) {
         Command::new("state-delete").args([key]).output().unwrap();
     }
+
+    fn resource_path(&self, name: &str) -> String {
+        let output = Command::new("resource-get").args([name]).output().unwrap();
+        String::from_utf8(output.stdout).unwrap()
+    }
 }
 
 /// This is the interface for the backend that the charm will see.
@@ -271,6 +277,7 @@ where
 }
 
 pub struct Unit<'a, B> {
+    backend: &'a B,
     pub leader: bool,
     pub state: UnitState<'a, B>,
 }
@@ -286,9 +293,14 @@ where
 {
     pub fn load_from_backend(backend: &'a B) -> Self {
         Self {
+            backend,
             leader: backend.is_leader().unwrap(),
-            state: UnitState::load_from_backend(&backend),
+            state: UnitState::load_from_backend(backend),
         }
+    }
+
+    pub fn resource_path(&self, name: &str) -> String {
+        self.backend.resource_path(name)
     }
 }
 
@@ -296,6 +308,9 @@ impl<'a, B> UnitState<'a, B>
 where
     B: Backend,
 {
+    // TODO: is loading from the backend on init a good pattern?
+    // Another option may be to load and cache on first call to get, etc.
+    // Same thought for the others with load_from_backend.
     pub fn load_from_backend(backend: &'a B) -> Self {
         Self {
             backend,
