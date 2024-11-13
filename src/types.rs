@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
-    sync::OnceLock,
+    sync::LazyLock,
 };
 
 use regex::Regex;
@@ -98,7 +98,8 @@ pub type ActionResult =
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ActionResultKey(String);
 
-static ACTION_KEY_REGEX_CELL: OnceLock<Regex> = OnceLock::new();
+static ACTION_KEY_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[a-z](:?[a-z0-9.-]*[a-z])*").unwrap());
 
 impl TryFrom<String> for ActionResultKey {
     type Error = String;
@@ -110,8 +111,6 @@ impl TryFrom<String> for ActionResultKey {
     // "stdout", "stdout-encoding", "stderr", "stderr-encoding".
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let reserved = ["stdout", "stdout-encoding", "stderr", "stderr-encoding"];
-        let action_key_regex = ACTION_KEY_REGEX_CELL
-            .get_or_init(|| Regex::new(r"[a-z](:?[a-z0-9.-]*[a-z])*").unwrap());
 
         if reserved.contains(&value.as_str()) {
             Err(format!(
@@ -119,7 +118,7 @@ impl TryFrom<String> for ActionResultKey {
             ))
         } else if value.is_empty() {
             Err("Empty key found. Keys must contain at least one character.".to_owned())
-        } else if !action_key_regex.is_match(&value) {
+        } else if !ACTION_KEY_REGEX.is_match(&value) {
             Err(format!("{:?} is invalid. Keys must start and end with lowercase alphanumeric, and contain only lowercase alphanumeric and hyphens.", value))
         } else {
             Ok(Self(value))
