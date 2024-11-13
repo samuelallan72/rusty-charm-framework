@@ -5,6 +5,7 @@ use std::{
 };
 
 use regex::Regex;
+use serde::Deserialize;
 
 // Error is also a status, but not one that can be directly set.
 pub enum Status<'a> {
@@ -130,4 +131,31 @@ impl ActionResultKey {
     pub fn value(self) -> String {
         self.0
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct JujuCredentialsCredentialAttrs {
+    pub client_cert: String,
+    pub client_key: String,
+    pub server_cert: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct JujuCredentialsCredential {
+    pub auth_type: String,
+    pub attrs: JujuCredentialsCredentialAttrs,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all(deserialize = "kebab-case"))]
+pub struct JujuCredentials {
+    #[serde(rename = "type")]
+    pub cloud_type: String,
+    pub name: String,
+    pub region: String,
+    pub endpoint: String,
+    pub credential: JujuCredentialsCredential,
+    pub is_controller_cloud: bool,
 }

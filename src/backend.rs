@@ -2,12 +2,13 @@ use std::{collections::HashMap, process::Command};
 
 use serde_json::{self, Map, Value};
 
-use crate::types::{ActionResultKey, ActionValue, LogLevel, Status};
+use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Status};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
+    fn credentials(&self) -> JujuCredentials;
     fn reboot(&self, now: bool);
     fn set_application_version(&self, version: &str);
     fn set_action_fail(&self, msg: &str);
@@ -200,6 +201,14 @@ impl Backend for JujuBackend {
             .args(&args)
             .output()
             .expect("failed to execute juju-reboot");
+    }
+
+    fn credentials(&self) -> JujuCredentials {
+        let output = Command::new("credential-get")
+            .args(["--format", "json"])
+            .output()
+            .expect("failed to execute credential-get");
+        serde_json::from_slice(&output.stdout).unwrap()
     }
 }
 
