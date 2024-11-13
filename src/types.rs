@@ -131,26 +131,3 @@ impl ActionResultKey {
         self.0
     }
 }
-
-// Convert a custom nested hashmap into path.to.key=value notation for juju action-set.
-pub(crate) fn action_result_to_dotted_values(
-    data: HashMap<ActionResultKey, ActionValue>,
-) -> Vec<String> {
-    let mut result_values = vec![];
-    for (key, value) in data.into_iter() {
-        let prefix: String = key.value();
-
-        match value {
-            ActionValue::Value(value) => {
-                result_values.push(format!("{prefix}={value}"));
-            }
-            ActionValue::Nested(hash_map) => {
-                for partial_value in action_result_to_dotted_values(hash_map) {
-                    result_values.push(format!("{prefix}.{partial_value}"));
-                }
-            }
-        }
-    }
-
-    result_values
-}

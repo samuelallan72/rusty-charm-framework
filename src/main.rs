@@ -2,8 +2,9 @@
 // No framework lib code should go here.
 use rusty_charm_framework::{
     backend::{Backend, JujuBackend},
+    model::{ActionModel, EventModel},
     types::{ActionResult, ActionResultKey, ActionValue, Event, Status},
-    ActionModel, EventModel, Framework,
+    Framework,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, thread, time};

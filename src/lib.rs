@@ -1,74 +1,10 @@
 pub mod backend;
+pub mod model;
 pub mod types;
 
-use backend::{Backend, Logger, Ports, StatusManager, Unit};
+use backend::Backend;
+use model::{ActionModel, EventModel};
 use types::{Event, LogLevel};
-
-pub struct EventModel<'a, B, C> {
-    backend: &'a B,
-    pub event: Event,
-    pub unit: Unit<'a, B, C>,
-    pub ports: Ports<'a, B>,
-    pub status: StatusManager<'a, B>,
-    pub log: Logger<'a, B>,
-}
-
-impl<'a, B, C> EventModel<'a, B, C>
-where
-    B: Backend,
-    C: serde::de::DeserializeOwned,
-{
-    pub(crate) fn new(backend: &'a B, event: Event) -> Self {
-        Self {
-            event,
-            backend: &backend,
-            unit: Unit::new(&backend),
-            ports: Ports::new(&backend),
-            status: StatusManager::new(&backend),
-            log: Logger::new(&backend),
-        }
-    }
-
-    // these should only be called in an event hook
-    pub fn reboot(&self) {
-        self.backend.reboot(false)
-    }
-
-    pub fn reboot_now(&self) {
-        self.backend.reboot(true)
-    }
-}
-
-pub struct ActionModel<'a, A, B, C> {
-    backend: &'a B,
-    pub action: A,
-    pub unit: Unit<'a, B, C>,
-    pub ports: Ports<'a, B>,
-    pub status: StatusManager<'a, B>,
-    pub log: Logger<'a, B>,
-}
-
-impl<'a, A, B, C> ActionModel<'a, A, B, C>
-where
-    B: Backend,
-    C: serde::de::DeserializeOwned,
-{
-    pub(crate) fn new(backend: &'a B, action: A) -> Self {
-        Self {
-            action,
-            backend: &backend,
-            unit: Unit::new(&backend),
-            ports: Ports::new(&backend),
-            status: StatusManager::new(&backend),
-            log: Logger::new(&backend),
-        }
-    }
-
-    // these should only be called in an action
-    pub fn action_log(&self, msg: &str) {
-        self.backend.action_log(msg)
-    }
-}
 
 pub struct Framework<A, B, C> {
     backend: B,

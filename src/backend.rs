@@ -1,9 +1,8 @@
-use crate::types::{
-    action_result_to_dotted_values, ActionResultKey, ActionValue, LogLevel, Status,
-};
-use serde_json::{self, Map, Value};
-use std::sync::OnceLock;
 use std::{collections::HashMap, process::Command};
+
+use serde_json::{self, Map, Value};
+
+use crate::types::{ActionResultKey, ActionValue, LogLevel, Status};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
@@ -204,159 +203,23 @@ impl Backend for JujuBackend {
     }
 }
 
-pub struct Ports<'a, B> {
-    ports: OnceLock<Vec<String>>,
-    backend: &'a B,
-}
+// Convert a custom nested hashmap into path.to.key=value notation for juju action-set.
+fn action_result_to_dotted_values(data: HashMap<ActionResultKey, ActionValue>) -> Vec<String> {
+    let mut result_values = vec![];
+    for (key, value) in data.into_iter() {
+        let prefix: String = key.value();
 
-impl<'a, B> Ports<'a, B>
-where
-    B: Backend,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            ports: OnceLock::new(),
+        match value {
+            ActionValue::Value(value) => {
+                result_values.push(format!("{prefix}={value}"));
+            }
+            ActionValue::Nested(hash_map) => {
+                for partial_value in action_result_to_dotted_values(hash_map) {
+                    result_values.push(format!("{prefix}.{partial_value}"));
+                }
+            }
         }
     }
 
-    pub fn ports(&self) -> &Vec<String> {
-        self.ports.get_or_init(|| self.backend.opened_ports())
-    }
-
-    pub fn open_port(&self, port: &str, endpoints: Vec<&str>) {
-        self.backend.open_port(port, endpoints)
-    }
-
-    pub fn close_port(&self, port: &str, endpoints: Vec<&str>) {
-        self.backend.close_port(port, endpoints)
-    }
-}
-
-pub struct Unit<'a, B, C> {
-    backend: &'a B,
-    is_leader_cache: OnceLock<bool>,
-    config_cache: OnceLock<C>,
-    pub state: UnitState<'a, B>,
-}
-
-impl<'a, B, C> Unit<'a, B, C>
-where
-    B: Backend,
-    C: serde::de::DeserializeOwned,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            config_cache: OnceLock::new(),
-            is_leader_cache: OnceLock::new(),
-            state: UnitState::new(backend),
-        }
-    }
-
-    pub fn is_leader(&self) -> bool {
-        *self
-            .is_leader_cache
-            .get_or_init(|| self.backend.is_leader().unwrap())
-    }
-
-    pub fn config(&self) -> &C {
-        self.config_cache.get_or_init(|| self.backend.config())
-    }
-
-    pub fn resource_path(&self, name: &str) -> String {
-        self.backend.resource_path(name)
-    }
-
-    /// Set the workload application version.
-    pub fn set_application_version(&self, version: &str) {
-        self.backend.set_application_version(version)
-    }
-}
-
-pub struct UnitState<'a, B> {
-    backend: &'a B,
-    state: OnceLock<HashMap<String, String>>,
-}
-
-impl<'a, B> UnitState<'a, B>
-where
-    B: Backend,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            state: OnceLock::new(),
-        }
-    }
-
-    pub fn state(&self) -> &HashMap<String, String> {
-        self.state.get_or_init(|| self.backend.get_unit_state())
-    }
-
-    pub fn set(&self, key: &str, value: &str) {
-        self.backend.set_unit_state(key, value)
-    }
-
-    pub fn del(&self, key: &str) {
-        self.backend.delete_unit_state(key)
-    }
-}
-
-pub struct StatusManager<'a, B> {
-    backend: &'a B,
-}
-
-impl<'a, B> StatusManager<'a, B>
-where
-    B: Backend,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self { backend }
-    }
-
-    pub fn active(&self, msg: &str) {
-        self.backend.set_status(Status::Active(msg))
-    }
-
-    pub fn blocked(&self, msg: &str) {
-        self.backend.set_status(Status::Blocked(msg))
-    }
-
-    pub fn maintenance(&self, msg: &str) {
-        self.backend.set_status(Status::Maintenance(msg))
-    }
-
-    pub fn waiting(&self, msg: &str) {
-        self.backend.set_status(Status::Waiting(msg))
-    }
-}
-
-pub struct Logger<'a, B> {
-    backend: &'a B,
-}
-
-impl<'a, B> Logger<'a, B>
-where
-    B: Backend,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self { backend }
-    }
-
-    pub fn debug(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Debug)
-    }
-
-    pub fn info(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Info)
-    }
-
-    pub fn warn(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Warning)
-    }
-
-    pub fn error(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Error)
-    }
+    result_values
 }
