@@ -2,6 +2,7 @@ use crate::types::{
     action_result_to_dotted_values, ActionResultKey, ActionValue, LogLevel, Status,
 };
 use serde_json::{self, Map, Value};
+use std::sync::OnceLock;
 use std::{collections::HashMap, process::Command};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
@@ -204,7 +205,7 @@ impl Backend for JujuBackend {
 }
 
 pub struct Ports<'a, B> {
-    pub ports: Vec<String>,
+    ports: OnceLock<Vec<String>>,
     backend: &'a B,
 }
 
@@ -212,11 +213,15 @@ impl<'a, B> Ports<'a, B>
 where
     B: Backend,
 {
-    pub fn load_from_backend(backend: &'a B) -> Self {
+    pub fn new(backend: &'a B) -> Self {
         Self {
             backend,
-            ports: backend.opened_ports(),
+            ports: OnceLock::new(),
         }
+    }
+
+    pub fn ports(&self) -> &Vec<String> {
+        self.ports.get_or_init(|| self.backend.opened_ports())
     }
 
     pub fn open_port(&self, port: &str, endpoints: Vec<&str>) {
@@ -228,22 +233,35 @@ where
     }
 }
 
-pub struct Unit<'a, B> {
+pub struct Unit<'a, B, C> {
     backend: &'a B,
-    pub leader: bool,
+    is_leader_cache: OnceLock<bool>,
+    config_cache: OnceLock<C>,
     pub state: UnitState<'a, B>,
 }
 
-impl<'a, B> Unit<'a, B>
+impl<'a, B, C> Unit<'a, B, C>
 where
     B: Backend,
+    C: serde::de::DeserializeOwned,
 {
-    pub fn load_from_backend(backend: &'a B) -> Self {
+    pub fn new(backend: &'a B) -> Self {
         Self {
             backend,
-            leader: backend.is_leader().unwrap(),
-            state: UnitState::load_from_backend(backend),
+            config_cache: OnceLock::new(),
+            is_leader_cache: OnceLock::new(),
+            state: UnitState::new(backend),
         }
+    }
+
+    pub fn is_leader(&self) -> bool {
+        *self
+            .is_leader_cache
+            .get_or_init(|| self.backend.is_leader().unwrap())
+    }
+
+    pub fn config(&self) -> &C {
+        self.config_cache.get_or_init(|| self.backend.config())
     }
 
     pub fn resource_path(&self, name: &str) -> String {
@@ -258,21 +276,22 @@ where
 
 pub struct UnitState<'a, B> {
     backend: &'a B,
-    state: HashMap<String, String>,
+    state: OnceLock<HashMap<String, String>>,
 }
 
 impl<'a, B> UnitState<'a, B>
 where
     B: Backend,
 {
-    // TODO: is loading from the backend on init a good pattern?
-    // Another option may be to load and cache on first call to get, etc.
-    // Same thought for the others with load_from_backend.
-    pub fn load_from_backend(backend: &'a B) -> Self {
+    pub fn new(backend: &'a B) -> Self {
         Self {
             backend,
-            state: backend.get_unit_state(),
+            state: OnceLock::new(),
         }
+    }
+
+    pub fn state(&self) -> &HashMap<String, String> {
+        self.state.get_or_init(|| self.backend.get_unit_state())
     }
 
     pub fn set(&self, key: &str, value: &str) {
@@ -281,10 +300,6 @@ where
 
     pub fn del(&self, key: &str) {
         self.backend.delete_unit_state(key)
-    }
-
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.state.get(key).map(|x| x.as_str())
     }
 }
 
@@ -296,7 +311,7 @@ impl<'a, B> StatusManager<'a, B>
 where
     B: Backend,
 {
-    pub fn load_from_backend(backend: &'a B) -> Self {
+    pub fn new(backend: &'a B) -> Self {
         Self { backend }
     }
 
@@ -325,7 +340,7 @@ impl<'a, B> Logger<'a, B>
 where
     B: Backend,
 {
-    pub fn load_from_backend(backend: &'a B) -> Self {
+    pub fn new(backend: &'a B) -> Self {
         Self { backend }
     }
 

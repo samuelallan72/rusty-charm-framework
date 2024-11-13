@@ -29,13 +29,13 @@ struct Config {
     region: String,
 }
 
-fn event_handler(model: EventModel<impl Backend, Config>, event: Event) -> Status {
+fn event_handler(model: EventModel<impl Backend, Config>) -> Status {
     model
         .log
-        .info(format!("region config = {}", model.config.region).as_str());
-    match event {
+        .info(format!("region config = {}", model.unit.config().region).as_str());
+    match model.event {
         Event::UpdateStatus => {
-            if model.config.region.is_empty() {
+            if model.unit.config().region.is_empty() {
                 return Status::Blocked("region option cannot be empty");
             } else {
                 return Status::Active("");
@@ -50,11 +50,11 @@ fn event_handler(model: EventModel<impl Backend, Config>, event: Event) -> Statu
     return Status::Active("all good (probably)");
 }
 
-fn action_handler(model: ActionModel<impl Backend, Config>, action: Action) -> ActionResult {
+fn action_handler(model: ActionModel<Action, impl Backend, Config>) -> ActionResult {
     model
         .log
-        .debug(&format!("deserialised action: {:?}", action));
-    match action {
+        .debug(&format!("deserialised action: {:?}", model.action));
+    match model.action {
         Action::Log {} => {
             model.action_log("Logging a message at the beginning of the handler.");
 
@@ -69,8 +69,8 @@ fn action_handler(model: ActionModel<impl Backend, Config>, action: Action) -> A
             Ok(HashMap::new())
         }
         Action::EchoParams {
-            string,
-            string_with_default,
+            ref string,
+            ref string_with_default,
             fail,
         } => {
             model.action_log(&format!("string = {:?}", string));
@@ -85,12 +85,12 @@ fn action_handler(model: ActionModel<impl Backend, Config>, action: Action) -> A
                     let mut inner = HashMap::new();
                     inner.insert(
                         ActionResultKey::try_from("string-with-default".to_owned()).unwrap(),
-                        ActionValue::Value(string_with_default),
+                        ActionValue::Value(string_with_default.to_owned()),
                     );
                     if let Some(string) = string {
                         inner.insert(
                             ActionResultKey::try_from("string".to_owned()).unwrap(),
-                            ActionValue::Value(string),
+                            ActionValue::Value(string.to_owned()),
                         );
                     }
                     inner.insert(

@@ -5,26 +5,66 @@ use backend::{Backend, Logger, Ports, StatusManager, Unit};
 use types::{Event, LogLevel};
 
 pub struct EventModel<'a, B, C> {
-    pub config: C,
-    pub unit: Unit<'a, B>,
-    pub ports: Ports<'a, B>,
-    pub status: StatusManager<'a, B>,
-    pub log: Logger<'a, B>,
-}
-
-pub struct ActionModel<'a, B, C> {
     backend: &'a B,
-    pub config: C,
-    pub unit: Unit<'a, B>,
+    pub event: Event,
+    pub unit: Unit<'a, B, C>,
     pub ports: Ports<'a, B>,
     pub status: StatusManager<'a, B>,
     pub log: Logger<'a, B>,
 }
 
-impl<'a, B, C> ActionModel<'a, B, C>
+impl<'a, B, C> EventModel<'a, B, C>
 where
     B: Backend,
+    C: serde::de::DeserializeOwned,
 {
+    pub(crate) fn new(backend: &'a B, event: Event) -> Self {
+        Self {
+            event,
+            backend: &backend,
+            unit: Unit::new(&backend),
+            ports: Ports::new(&backend),
+            status: StatusManager::new(&backend),
+            log: Logger::new(&backend),
+        }
+    }
+
+    // these should only be called in an event hook
+    pub fn reboot(&self) {
+        self.backend.reboot(false)
+    }
+
+    pub fn reboot_now(&self) {
+        self.backend.reboot(true)
+    }
+}
+
+pub struct ActionModel<'a, A, B, C> {
+    backend: &'a B,
+    pub action: A,
+    pub unit: Unit<'a, B, C>,
+    pub ports: Ports<'a, B>,
+    pub status: StatusManager<'a, B>,
+    pub log: Logger<'a, B>,
+}
+
+impl<'a, A, B, C> ActionModel<'a, A, B, C>
+where
+    B: Backend,
+    C: serde::de::DeserializeOwned,
+{
+    pub(crate) fn new(backend: &'a B, action: A) -> Self {
+        Self {
+            action,
+            backend: &backend,
+            unit: Unit::new(&backend),
+            ports: Ports::new(&backend),
+            status: StatusManager::new(&backend),
+            log: Logger::new(&backend),
+        }
+    }
+
+    // these should only be called in an action
     pub fn action_log(&self, msg: &str) {
         self.backend.action_log(msg)
     }
@@ -32,8 +72,8 @@ where
 
 pub struct Framework<A, B, C> {
     backend: B,
-    event_handler: fn(EventModel<B, C>, Event) -> types::Status,
-    action_handler: fn(ActionModel<B, C>, A) -> types::ActionResult,
+    event_handler: fn(EventModel<B, C>) -> types::Status,
+    action_handler: fn(ActionModel<A, B, C>) -> types::ActionResult,
 }
 
 impl<A, B, C> Framework<A, B, C>
@@ -44,8 +84,8 @@ where
 {
     pub fn new(
         backend: B,
-        event_handler: fn(EventModel<B, C>, Event) -> types::Status,
-        action_handler: fn(ActionModel<B, C>, A) -> types::ActionResult,
+        event_handler: fn(EventModel<B, C>) -> types::Status,
+        action_handler: fn(ActionModel<A, B, C>) -> types::ActionResult,
     ) -> Self {
         Self {
             backend,
@@ -85,15 +125,9 @@ where
                 _ => Event::UpdateStatus, // TODO: other events
             };
 
-            let model: EventModel<B, C> = EventModel::<B, C> {
-                config: self.backend.config(),
-                unit: Unit::load_from_backend(&self.backend),
-                ports: Ports::load_from_backend(&self.backend),
-                status: StatusManager::load_from_backend(&self.backend),
-                log: Logger::load_from_backend(&self.backend),
-            };
+            let model = EventModel::new(&self.backend, event);
 
-            (self.event_handler)(model, event);
+            (self.event_handler)(model);
             return;
         }
 
@@ -105,16 +139,9 @@ where
             );
             let action: A = self.backend.action(action_name.as_str());
 
-            let model: ActionModel<B, C> = ActionModel::<B, C> {
-                backend: &self.backend,
-                config: self.backend.config(),
-                unit: Unit::load_from_backend(&self.backend),
-                ports: Ports::load_from_backend(&self.backend),
-                status: StatusManager::load_from_backend(&self.backend),
-                log: Logger::load_from_backend(&self.backend),
-            };
+            let model = ActionModel::new(&self.backend, action);
 
-            let result = (self.action_handler)(model, action);
+            let result = (self.action_handler)(model);
 
             match result {
                 Ok(data) => {
