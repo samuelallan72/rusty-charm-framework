@@ -1,11 +1,14 @@
 pub mod backend;
 pub mod types;
 
-use types::{Event, LogLevel};
+use backend::{Backend, CharmBackend, Ports};
+use types::{Event, LogLevel, Unit};
 
 pub struct Model<'a, B, C> {
     pub config: C,
-    pub backend: backend::CharmBackend<'a, B>,
+    pub backend: CharmBackend<'a, B>,
+    pub this_unit: Unit,
+    pub ports: Ports<'a, B>,
 }
 
 pub struct Framework<A, B, C> {
@@ -16,7 +19,7 @@ pub struct Framework<A, B, C> {
 
 impl<A, B, C> Framework<A, B, C>
 where
-    B: backend::Backend,
+    B: Backend,
     C: serde::de::DeserializeOwned,
     A: serde::de::DeserializeOwned,
 {
@@ -48,7 +51,11 @@ where
 
         let state: Model<B, C> = Model::<B, C> {
             config: self.backend.config(),
-            backend: backend::CharmBackend::new(&self.backend),
+            backend: CharmBackend::new(&self.backend),
+            this_unit: Unit {
+                leader: self.backend.is_leader().unwrap(),
+            },
+            ports: Ports::load_from_backend(&self.backend),
         };
 
         // ref. https://juju.is/docs/juju/charm-environment-variables for logic
@@ -65,7 +72,7 @@ where
                 "remove" => Event::Remove,
                 "update-status" => Event::UpdateStatus,
                 "upgrade-charm" => Event::UpgradeCharm,
-                _ => unimplemented!(),
+                _ => Event::UpdateStatus, // TODO: other events
             };
 
             (self.event_handler)(state, event);

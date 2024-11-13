@@ -99,7 +99,6 @@ pub struct ActionResultKey(String);
 
 static ACTION_KEY_REGEX_CELL: OnceLock<Regex> = OnceLock::new();
 
-// TODO: should we allow dotted.key.paths or support a custom nested hashmap type?
 impl TryFrom<String> for ActionResultKey {
     type Error = String;
 
@@ -154,4 +153,8 @@ pub(crate) fn action_result_to_dotted_values(
     }
 
     result_values
+}
+
+pub struct Unit {
+    pub leader: bool,
 }

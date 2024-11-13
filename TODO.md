@@ -1,5 +1,3 @@
-## Figure out a good name
-
 ## Spin off the test charm into a separate repo or directory
 
 ## support relations

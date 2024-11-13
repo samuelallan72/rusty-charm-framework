@@ -8,6 +8,7 @@ use std::{collections::HashMap, process::Command};
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
+    fn set_application_version(&self, version: &str);
     fn set_action_fail(&self, msg: &str);
     fn set_action_result(&self, data: HashMap<ActionResultKey, ActionValue>);
     fn action_name(&self) -> String;
@@ -29,6 +30,10 @@ pub trait Backend {
     /// Log a message to the action log. Only call this during an action event (ie. from the
     /// action handler function).
     fn action_log(&self, msg: &str);
+    fn is_leader(&self) -> Result<bool, String>;
+    fn opened_ports(&self) -> Vec<String>;
+    fn open_port(&self, port: &str, endpoints: Vec<&str>);
+    fn close_port(&self, port: &str, endpoints: Vec<&str>);
 }
 
 /// The real implementation for the backend.
@@ -62,7 +67,7 @@ impl Backend for JujuBackend {
 
     fn log(&self, msg: &str, level: LogLevel) {
         Command::new("juju-log")
-            .args(["--log-level", level.to_string().as_str(), msg])
+            .args(["--log-level", &level.to_string(), msg])
             .output()
             .expect("failed to execute juju-log");
     }
@@ -108,6 +113,53 @@ impl Backend for JujuBackend {
             .args([msg])
             .output()
             .expect("failed to execute action-set");
+    }
+
+    fn set_application_version(&self, version: &str) {
+        Command::new("application-version-set")
+            .args([version])
+            .output()
+            .expect("failed to execute application-version-set");
+    }
+
+    fn is_leader(&self) -> Result<bool, String> {
+        let output = Command::new("is-leader")
+            .args(["--format", "json"])
+            .output()
+            .map_err(|e| format!("{e}"))?;
+        Ok(serde_json::from_slice::<bool>(&output.stdout).unwrap())
+    }
+
+    fn opened_ports(&self) -> Vec<String> {
+        let output = Command::new("opened-ports")
+            .args(["--format", "json"])
+            .output()
+            .unwrap();
+        serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap()
+    }
+
+    fn open_port(&self, port: &str, endpoints: Vec<&str>) {
+        let mut args = vec![];
+        let endpoints = endpoints.join(",");
+        if !endpoints.is_empty() {
+            args.push("--endpoints");
+            args.push(&endpoints);
+        }
+        args.push(port);
+
+        Command::new("open-port").args(&args).output().unwrap();
+    }
+
+    fn close_port(&self, port: &str, endpoints: Vec<&str>) {
+        let mut args = vec![];
+        let endpoints = endpoints.join(",");
+        if !endpoints.is_empty() {
+            args.push("--endpoints");
+            args.push(&endpoints);
+        }
+        args.push(port);
+
+        Command::new("close-port").args(&args).output().unwrap();
     }
 }
 
@@ -160,5 +212,35 @@ where
     /// action handler function).
     pub fn action_log(&self, msg: &str) {
         self.backend.action_log(msg)
+    }
+
+    /// Set the workload application version.
+    pub fn set_application_version(&self, version: &str) {
+        self.backend.set_application_version(version)
+    }
+}
+
+pub struct Ports<'a, B> {
+    ports: Vec<String>,
+    backend: &'a B,
+}
+
+impl<'a, B> Ports<'a, B>
+where
+    B: Backend,
+{
+    pub fn load_from_backend(backend: &'a B) -> Self {
+        Self {
+            backend,
+            ports: backend.opened_ports(),
+        }
+    }
+
+    pub fn open_port(&self, port: &str, endpoints: Vec<&str>) {
+        self.backend.open_port(port, endpoints)
+    }
+
+    pub fn close_port(&self, port: &str, endpoints: Vec<&str>) {
+        self.backend.close_port(port, endpoints)
     }
 }
