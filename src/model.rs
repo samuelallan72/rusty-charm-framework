@@ -1,11 +1,9 @@
 use crate::types::{Event, LogLevel, Status};
 use std::collections::HashMap;
-use std::sync::OnceLock;
 
 use crate::backend::Backend;
 
 pub struct PortManager<'a, B> {
-    ports: OnceLock<Vec<String>>,
     backend: &'a B,
 }
 
@@ -14,14 +12,11 @@ where
     B: Backend,
 {
     pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            ports: OnceLock::new(),
-        }
+        Self { backend }
     }
 
-    pub fn ports(&self) -> &Vec<String> {
-        self.ports.get_or_init(|| self.backend.opened_ports())
+    pub fn ports(&self) -> Vec<String> {
+        self.backend.opened_ports()
     }
 
     pub fn open_port(&self, port: &str, endpoints: Vec<&str>) {
@@ -33,31 +28,24 @@ where
     }
 }
 
-pub struct Unit<'a, B, C> {
+pub struct Unit<'a, B> {
     backend: &'a B,
-    is_leader_cache: OnceLock<bool>,
-    config_cache: OnceLock<C>,
     pub state: UnitStateManager<'a, B>,
 }
 
-impl<'a, B, C> Unit<'a, B, C>
+impl<'a, B> Unit<'a, B>
 where
     B: Backend,
-    C: serde::de::DeserializeOwned,
 {
     pub fn new(backend: &'a B) -> Self {
         Self {
             backend,
-            config_cache: OnceLock::new(),
-            is_leader_cache: OnceLock::new(),
             state: UnitStateManager::new(backend),
         }
     }
 
     pub fn is_leader(&self) -> bool {
-        *self
-            .is_leader_cache
-            .get_or_init(|| self.backend.is_leader().unwrap())
+        self.backend.is_leader()
     }
 
     pub fn leader_settings(&self) -> Option<LeaderTools<'a, B>> {
@@ -68,8 +56,11 @@ where
         }
     }
 
-    pub fn config(&self) -> &C {
-        self.config_cache.get_or_init(|| self.backend.config())
+    pub fn config<C>(&self) -> C
+    where
+        C: serde::de::DeserializeOwned,
+    {
+        self.backend.config()
     }
 
     pub fn resource_path(&self, name: &str) -> String {
@@ -84,7 +75,6 @@ where
 
 pub struct UnitStateManager<'a, B> {
     backend: &'a B,
-    state: OnceLock<HashMap<String, String>>,
 }
 
 impl<'a, B> UnitStateManager<'a, B>
@@ -92,14 +82,11 @@ where
     B: Backend,
 {
     pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            state: OnceLock::new(),
-        }
+        Self { backend }
     }
 
-    pub fn state(&self) -> &HashMap<String, String> {
-        self.state.get_or_init(|| self.backend.get_unit_state())
+    pub fn state(&self) -> HashMap<String, String> {
+        self.backend.get_unit_state()
     }
 
     pub fn set(&self, key: &str, value: &str) {
@@ -169,19 +156,18 @@ where
     }
 }
 
-pub struct EventModel<'a, B, C> {
+pub struct EventModel<'a, B> {
     backend: &'a B,
     pub event: Event,
-    pub unit: Unit<'a, B, C>,
+    pub unit: Unit<'a, B>,
     pub ports: PortManager<'a, B>,
     pub status: StatusManager<'a, B>,
     pub log: Logger<'a, B>,
 }
 
-impl<'a, B, C> EventModel<'a, B, C>
+impl<'a, B> EventModel<'a, B>
 where
     B: Backend,
-    C: serde::de::DeserializeOwned,
 {
     pub fn new(backend: &'a B, event: Event) -> Self {
         Self {
@@ -204,19 +190,18 @@ where
     }
 }
 
-pub struct ActionModel<'a, A, B, C> {
+pub struct ActionModel<'a, A, B> {
     backend: &'a B,
     pub action: A,
-    pub unit: Unit<'a, B, C>,
+    pub unit: Unit<'a, B>,
     pub ports: PortManager<'a, B>,
     pub status: StatusManager<'a, B>,
     pub log: Logger<'a, B>,
 }
 
-impl<'a, A, B, C> ActionModel<'a, A, B, C>
+impl<'a, A, B> ActionModel<'a, A, B>
 where
     B: Backend,
-    C: serde::de::DeserializeOwned,
 {
     pub fn new(backend: &'a B, action: A) -> Self {
         Self {
@@ -236,7 +221,6 @@ where
 }
 
 pub struct LeaderTools<'a, B> {
-    leader_settings_cache: OnceLock<HashMap<String, String>>,
     backend: &'a B,
 }
 
@@ -245,18 +229,14 @@ where
     B: Backend,
 {
     pub fn new(backend: &'a B) -> Self {
-        Self {
-            backend,
-            leader_settings_cache: OnceLock::new(),
-        }
+        Self { backend }
     }
 
     pub fn set(&self, key: &str, value: &str) {
         self.backend.leader_set(key, value)
     }
 
-    pub fn get(&self) -> &HashMap<String, String> {
-        self.leader_settings_cache
-            .get_or_init(|| self.backend.leader_get())
+    pub fn get(&self) -> HashMap<String, String> {
+        self.backend.leader_get()
     }
 }

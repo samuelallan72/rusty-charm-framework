@@ -6,22 +6,21 @@ use backend::Backend;
 use model::{ActionModel, EventModel};
 use types::{Event, LogLevel};
 
-pub struct Framework<A, B, C> {
+pub struct Framework<A, B> {
     backend: B,
-    event_handler: fn(EventModel<B, C>) -> types::Status,
-    action_handler: fn(ActionModel<A, B, C>) -> types::ActionResult,
+    event_handler: fn(EventModel<B>) -> types::Status,
+    action_handler: fn(ActionModel<A, B>) -> types::ActionResult,
 }
 
-impl<A, B, C> Framework<A, B, C>
+impl<A, B> Framework<A, B>
 where
     B: Backend,
-    C: serde::de::DeserializeOwned,
     A: serde::de::DeserializeOwned,
 {
     pub fn new(
         backend: B,
-        event_handler: fn(EventModel<B, C>) -> types::Status,
-        action_handler: fn(ActionModel<A, B, C>) -> types::ActionResult,
+        event_handler: fn(EventModel<B>) -> types::Status,
+        action_handler: fn(ActionModel<A, B>) -> types::ActionResult,
     ) -> Self {
         Self {
             backend,

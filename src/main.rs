@@ -30,13 +30,14 @@ struct Config {
     region: String,
 }
 
-fn event_handler(model: EventModel<impl Backend, Config>) -> Status {
+fn event_handler(model: EventModel<impl Backend>) -> Status {
+    let config: Config = model.unit.config();
     model
         .log
-        .info(format!("region config = {}", model.unit.config().region).as_str());
+        .info(format!("region config = {}", config.region).as_str());
     match model.event {
         Event::UpdateStatus => {
-            if model.unit.config().region.is_empty() {
+            if config.region.is_empty() {
                 return Status::Blocked("region option cannot be empty");
             } else {
                 return Status::Active("");
@@ -51,7 +52,7 @@ fn event_handler(model: EventModel<impl Backend, Config>) -> Status {
     return Status::Active("all good (probably)");
 }
 
-fn action_handler(model: ActionModel<Action, impl Backend, Config>) -> ActionResult {
+fn action_handler(model: ActionModel<Action, impl Backend>) -> ActionResult {
     model
         .log
         .debug(&format!("deserialised action: {:?}", model.action));

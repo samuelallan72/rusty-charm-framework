@@ -34,7 +34,7 @@ pub trait Backend {
     /// Log a message to the action log. Only call this during an action event (ie. from the
     /// action handler function).
     fn action_log(&self, msg: &str);
-    fn is_leader(&self) -> Result<bool, String>;
+    fn is_leader(&self) -> bool;
     fn opened_ports(&self) -> Vec<String>;
     fn open_port(&self, port: &str, endpoints: Vec<&str>);
     fn close_port(&self, port: &str, endpoints: Vec<&str>);
@@ -130,12 +130,12 @@ impl Backend for JujuBackend {
             .expect("failed to execute application-version-set");
     }
 
-    fn is_leader(&self) -> Result<bool, String> {
+    fn is_leader(&self) -> bool {
         let output = Command::new("is-leader")
             .args(["--format", "json"])
             .output()
-            .map_err(|e| format!("{e}"))?;
-        Ok(serde_json::from_slice::<bool>(&output.stdout).unwrap())
+            .unwrap();
+        serde_json::from_slice::<bool>(&output.stdout).unwrap()
     }
 
     fn opened_ports(&self) -> Vec<String> {
