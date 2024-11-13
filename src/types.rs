@@ -154,7 +154,3 @@ pub(crate) fn action_result_to_dotted_values(
 
     result_values
 }
-
-pub struct Unit {
-    pub leader: bool,
-}

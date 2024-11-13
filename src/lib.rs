@@ -1,13 +1,13 @@
 pub mod backend;
 pub mod types;
 
-use backend::{Backend, CharmBackend, Ports};
-use types::{Event, LogLevel, Unit};
+use backend::{Backend, CharmBackend, Ports, Unit};
+use types::{Event, LogLevel};
 
 pub struct Model<'a, B, C> {
     pub config: C,
     pub backend: CharmBackend<'a, B>,
-    pub this_unit: Unit,
+    pub this_unit: Unit<'a, B>,
     pub ports: Ports<'a, B>,
 }
 
@@ -52,9 +52,7 @@ where
         let state: Model<B, C> = Model::<B, C> {
             config: self.backend.config(),
             backend: CharmBackend::new(&self.backend),
-            this_unit: Unit {
-                leader: self.backend.is_leader().unwrap(),
-            },
+            this_unit: Unit::load_from_backend(&self.backend),
             ports: Ports::load_from_backend(&self.backend),
         };
 

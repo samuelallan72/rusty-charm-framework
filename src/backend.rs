@@ -34,6 +34,9 @@ pub trait Backend {
     fn opened_ports(&self) -> Vec<String>;
     fn open_port(&self, port: &str, endpoints: Vec<&str>);
     fn close_port(&self, port: &str, endpoints: Vec<&str>);
+    fn get_unit_state(&self) -> HashMap<String, String>;
+    fn set_unit_state(&self, key: &str, value: &str);
+    fn delete_unit_state(&self, key: &str);
 }
 
 /// The real implementation for the backend.
@@ -161,6 +164,28 @@ impl Backend for JujuBackend {
 
         Command::new("close-port").args(&args).output().unwrap();
     }
+
+    fn get_unit_state(&self) -> HashMap<String, String> {
+        let output = Command::new("state-get")
+            .args(["--format", "json"])
+            .output()
+            .unwrap();
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+
+    // NOTE: could use file from stdin if need to save large state.
+    // A possible optimisation for the future.
+    fn set_unit_state(&self, key: &str, value: &str) {
+        // TODO: limit key to not contain `=`?
+        Command::new("state-set")
+            .args([&format!("{key}={value}")])
+            .output()
+            .unwrap();
+    }
+
+    fn delete_unit_state(&self, key: &str) {
+        Command::new("state-delete").args([key]).output().unwrap();
+    }
 }
 
 /// This is the interface for the backend that the charm will see.
@@ -221,7 +246,7 @@ where
 }
 
 pub struct Ports<'a, B> {
-    ports: Vec<String>,
+    pub ports: Vec<String>,
     backend: &'a B,
 }
 
@@ -242,5 +267,51 @@ where
 
     pub fn close_port(&self, port: &str, endpoints: Vec<&str>) {
         self.backend.close_port(port, endpoints)
+    }
+}
+
+pub struct Unit<'a, B> {
+    pub leader: bool,
+    pub state: UnitState<'a, B>,
+}
+
+pub struct UnitState<'a, B> {
+    backend: &'a B,
+    state: HashMap<String, String>,
+}
+
+impl<'a, B> Unit<'a, B>
+where
+    B: Backend,
+{
+    pub fn load_from_backend(backend: &'a B) -> Self {
+        Self {
+            leader: backend.is_leader().unwrap(),
+            state: UnitState::load_from_backend(&backend),
+        }
+    }
+}
+
+impl<'a, B> UnitState<'a, B>
+where
+    B: Backend,
+{
+    pub fn load_from_backend(backend: &'a B) -> Self {
+        Self {
+            backend,
+            state: backend.get_unit_state(),
+        }
+    }
+
+    pub fn set(&self, key: &str, value: &str) {
+        self.backend.set_unit_state(key, value)
+    }
+
+    pub fn del(&self, key: &str) {
+        self.backend.delete_unit_state(key)
+    }
+
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.state.get(key).map(|x| x.as_str())
     }
 }
