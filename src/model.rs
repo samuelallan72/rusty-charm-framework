@@ -44,12 +44,8 @@ where
         }
     }
 
-    pub fn is_leader(&self) -> bool {
-        self.backend.is_leader()
-    }
-
-    pub fn leader_settings(&self) -> Option<LeaderTools<'a, B>> {
-        if self.is_leader() {
+    pub fn leader(&self) -> Option<LeaderTools<'a, B>> {
+        if self.backend.is_leader() {
             Some(LeaderTools::new(&self.backend))
         } else {
             None
