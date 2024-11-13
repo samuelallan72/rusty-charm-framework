@@ -60,6 +60,14 @@ where
             .get_or_init(|| self.backend.is_leader().unwrap())
     }
 
+    pub fn leader_settings(&self) -> Option<LeaderTools<'a, B>> {
+        if self.is_leader() {
+            Some(LeaderTools::new(&self.backend))
+        } else {
+            None
+        }
+    }
+
     pub fn config(&self) -> &C {
         self.config_cache.get_or_init(|| self.backend.config())
     }
@@ -224,5 +232,31 @@ where
     // these should only be called in an action
     pub fn action_log(&self, msg: &str) {
         self.backend.action_log(msg)
+    }
+}
+
+pub struct LeaderTools<'a, B> {
+    leader_settings_cache: OnceLock<HashMap<String, String>>,
+    backend: &'a B,
+}
+
+impl<'a, B> LeaderTools<'a, B>
+where
+    B: Backend,
+{
+    pub fn new(backend: &'a B) -> Self {
+        Self {
+            backend,
+            leader_settings_cache: OnceLock::new(),
+        }
+    }
+
+    pub fn set(&self, key: &str, value: &str) {
+        self.backend.leader_set(key, value)
+    }
+
+    pub fn get(&self) -> &HashMap<String, String> {
+        self.leader_settings_cache
+            .get_or_init(|| self.backend.leader_get())
     }
 }

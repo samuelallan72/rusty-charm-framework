@@ -8,6 +8,8 @@ use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Stat
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
+    fn leader_get(&self) -> HashMap<String, String>;
+    fn leader_set(&self, key: &str, value: &str);
     fn credentials(&self) -> JujuCredentials;
     fn reboot(&self, now: bool);
     fn set_application_version(&self, version: &str);
@@ -208,6 +210,22 @@ impl Backend for JujuBackend {
             .args(["--format", "json"])
             .output()
             .expect("failed to execute credential-get");
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+
+    fn leader_set(&self, key: &str, value: &str) {
+        // TODO: limit key to not contain `=`?
+        Command::new("leader-set")
+            .args([&format!("{key}={value}")])
+            .output()
+            .unwrap();
+    }
+
+    fn leader_get(&self) -> HashMap<String, String> {
+        let output = Command::new("leader-get")
+            .args(["--format", "json"])
+            .output()
+            .unwrap();
         serde_json::from_slice(&output.stdout).unwrap()
     }
 }
