@@ -1,20 +1,39 @@
 pub mod backend;
 pub mod types;
 
-use backend::{Backend, CharmBackend, Ports, Unit};
+use backend::{Backend, Logger, Ports, StatusManager, Unit};
 use types::{Event, LogLevel};
 
-pub struct Model<'a, B, C> {
+pub struct EventModel<'a, B, C> {
     pub config: C,
-    pub backend: CharmBackend<'a, B>,
-    pub this_unit: Unit<'a, B>,
+    pub unit: Unit<'a, B>,
     pub ports: Ports<'a, B>,
+    pub status: StatusManager<'a, B>,
+    pub log: Logger<'a, B>,
+}
+
+pub struct ActionModel<'a, B, C> {
+    backend: &'a B,
+    pub config: C,
+    pub unit: Unit<'a, B>,
+    pub ports: Ports<'a, B>,
+    pub status: StatusManager<'a, B>,
+    pub log: Logger<'a, B>,
+}
+
+impl<'a, B, C> ActionModel<'a, B, C>
+where
+    B: Backend,
+{
+    pub fn action_log(&self, msg: &str) {
+        self.backend.action_log(msg)
+    }
 }
 
 pub struct Framework<A, B, C> {
     backend: B,
-    event_handler: fn(Model<B, C>, Event) -> types::Status,
-    action_handler: fn(Model<B, C>, A) -> types::ActionResult,
+    event_handler: fn(EventModel<B, C>, Event) -> types::Status,
+    action_handler: fn(ActionModel<B, C>, A) -> types::ActionResult,
 }
 
 impl<A, B, C> Framework<A, B, C>
@@ -25,8 +44,8 @@ where
 {
     pub fn new(
         backend: B,
-        event_handler: fn(Model<B, C>, Event) -> types::Status,
-        action_handler: fn(Model<B, C>, A) -> types::ActionResult,
+        event_handler: fn(EventModel<B, C>, Event) -> types::Status,
+        action_handler: fn(ActionModel<B, C>, A) -> types::ActionResult,
     ) -> Self {
         Self {
             backend,
@@ -49,13 +68,6 @@ where
                 .log(format!("{key}: {value}").as_str(), LogLevel::Debug);
         }
 
-        let state: Model<B, C> = Model::<B, C> {
-            config: self.backend.config(),
-            backend: CharmBackend::new(&self.backend),
-            this_unit: Unit::load_from_backend(&self.backend),
-            ports: Ports::load_from_backend(&self.backend),
-        };
-
         // ref. https://juju.is/docs/juju/charm-environment-variables for logic
         let hook_name = self.backend.hook_name();
         if !hook_name.is_empty() {
@@ -73,7 +85,15 @@ where
                 _ => Event::UpdateStatus, // TODO: other events
             };
 
-            (self.event_handler)(state, event);
+            let model: EventModel<B, C> = EventModel::<B, C> {
+                config: self.backend.config(),
+                unit: Unit::load_from_backend(&self.backend),
+                ports: Ports::load_from_backend(&self.backend),
+                status: StatusManager::load_from_backend(&self.backend),
+                log: Logger::load_from_backend(&self.backend),
+            };
+
+            (self.event_handler)(model, event);
             return;
         }
 
@@ -84,7 +104,17 @@ where
                 LogLevel::Debug,
             );
             let action: A = self.backend.action(action_name.as_str());
-            let result = (self.action_handler)(state, action);
+
+            let model: ActionModel<B, C> = ActionModel::<B, C> {
+                backend: &self.backend,
+                config: self.backend.config(),
+                unit: Unit::load_from_backend(&self.backend),
+                ports: Ports::load_from_backend(&self.backend),
+                status: StatusManager::load_from_backend(&self.backend),
+                log: Logger::load_from_backend(&self.backend),
+            };
+
+            let result = (self.action_handler)(model, action);
 
             match result {
                 Ok(data) => {

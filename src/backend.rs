@@ -8,6 +8,7 @@ use std::{collections::HashMap, process::Command};
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
+    fn reboot(&self, now: bool);
     fn set_application_version(&self, version: &str);
     fn set_action_fail(&self, msg: &str);
     fn set_action_result(&self, data: HashMap<ActionResultKey, ActionValue>);
@@ -192,62 +193,13 @@ impl Backend for JujuBackend {
         let output = Command::new("resource-get").args([name]).output().unwrap();
         String::from_utf8(output.stdout).unwrap()
     }
-}
 
-/// This is the interface for the backend that the charm will see.
-/// It provides helpful methods for interacting with juju and the environment.
-pub struct CharmBackend<'a, B> {
-    backend: &'a B,
-}
-
-impl<'a, B> CharmBackend<'a, B>
-where
-    B: Backend,
-{
-    pub fn new(backend: &'a B) -> Self {
-        Self { backend }
-    }
-    pub fn active(&self, msg: &str) {
-        self.backend.set_status(Status::Active(msg))
-    }
-
-    pub fn blocked(&self, msg: &str) {
-        self.backend.set_status(Status::Blocked(msg))
-    }
-
-    pub fn maintenance(&self, msg: &str) {
-        self.backend.set_status(Status::Maintenance(msg))
-    }
-
-    pub fn waiting(&self, msg: &str) {
-        self.backend.set_status(Status::Waiting(msg))
-    }
-
-    pub fn debug(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Debug)
-    }
-
-    pub fn info(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Info)
-    }
-
-    pub fn warn(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Warning)
-    }
-
-    pub fn error(&self, msg: &str) {
-        self.backend.log(msg, LogLevel::Error)
-    }
-
-    /// Log a message to the action log. Only call this during an action event (ie. from the
-    /// action handler function).
-    pub fn action_log(&self, msg: &str) {
-        self.backend.action_log(msg)
-    }
-
-    /// Set the workload application version.
-    pub fn set_application_version(&self, version: &str) {
-        self.backend.set_application_version(version)
+    fn reboot(&self, now: bool) {
+        let args = if now { vec!["--now"] } else { vec![] };
+        Command::new("juju-reboot")
+            .args(&args)
+            .output()
+            .expect("failed to execute juju-reboot");
     }
 }
 
@@ -282,11 +234,6 @@ pub struct Unit<'a, B> {
     pub state: UnitState<'a, B>,
 }
 
-pub struct UnitState<'a, B> {
-    backend: &'a B,
-    state: HashMap<String, String>,
-}
-
 impl<'a, B> Unit<'a, B>
 where
     B: Backend,
@@ -302,6 +249,16 @@ where
     pub fn resource_path(&self, name: &str) -> String {
         self.backend.resource_path(name)
     }
+
+    /// Set the workload application version.
+    pub fn set_application_version(&self, version: &str) {
+        self.backend.set_application_version(version)
+    }
+}
+
+pub struct UnitState<'a, B> {
+    backend: &'a B,
+    state: HashMap<String, String>,
 }
 
 impl<'a, B> UnitState<'a, B>
@@ -328,5 +285,63 @@ where
 
     pub fn get(&self, key: &str) -> Option<&str> {
         self.state.get(key).map(|x| x.as_str())
+    }
+}
+
+pub struct StatusManager<'a, B> {
+    backend: &'a B,
+}
+
+impl<'a, B> StatusManager<'a, B>
+where
+    B: Backend,
+{
+    pub fn load_from_backend(backend: &'a B) -> Self {
+        Self { backend }
+    }
+
+    pub fn active(&self, msg: &str) {
+        self.backend.set_status(Status::Active(msg))
+    }
+
+    pub fn blocked(&self, msg: &str) {
+        self.backend.set_status(Status::Blocked(msg))
+    }
+
+    pub fn maintenance(&self, msg: &str) {
+        self.backend.set_status(Status::Maintenance(msg))
+    }
+
+    pub fn waiting(&self, msg: &str) {
+        self.backend.set_status(Status::Waiting(msg))
+    }
+}
+
+pub struct Logger<'a, B> {
+    backend: &'a B,
+}
+
+impl<'a, B> Logger<'a, B>
+where
+    B: Backend,
+{
+    pub fn load_from_backend(backend: &'a B) -> Self {
+        Self { backend }
+    }
+
+    pub fn debug(&self, msg: &str) {
+        self.backend.log(msg, LogLevel::Debug)
+    }
+
+    pub fn info(&self, msg: &str) {
+        self.backend.log(msg, LogLevel::Info)
+    }
+
+    pub fn warn(&self, msg: &str) {
+        self.backend.log(msg, LogLevel::Warning)
+    }
+
+    pub fn error(&self, msg: &str) {
+        self.backend.log(msg, LogLevel::Error)
     }
 }

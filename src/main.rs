@@ -3,7 +3,7 @@
 use rusty_charm_framework::{
     backend::{Backend, JujuBackend},
     types::{ActionResult, ActionResultKey, ActionValue, Event, Status},
-    Framework, Model,
+    ActionModel, EventModel, Framework,
 };
 use serde::Deserialize;
 use std::{collections::HashMap, thread, time};
@@ -29,9 +29,9 @@ struct Config {
     region: String,
 }
 
-fn event_handler(model: Model<impl Backend, Config>, event: Event) -> Status {
+fn event_handler(model: EventModel<impl Backend, Config>, event: Event) -> Status {
     model
-        .backend
+        .log
         .info(format!("region config = {}", model.config.region).as_str());
     match event {
         Event::UpdateStatus => {
@@ -42,7 +42,7 @@ fn event_handler(model: Model<impl Backend, Config>, event: Event) -> Status {
             }
         }
         Event::Install => {
-            model.backend.active("Install hook completed");
+            model.status.active("Install hook completed");
         }
         _ => {}
     }
@@ -50,23 +50,21 @@ fn event_handler(model: Model<impl Backend, Config>, event: Event) -> Status {
     return Status::Active("all good (probably)");
 }
 
-fn action_handler(model: Model<impl Backend, Config>, action: Action) -> ActionResult {
+fn action_handler(model: ActionModel<impl Backend, Config>, action: Action) -> ActionResult {
     model
-        .backend
+        .log
         .debug(&format!("deserialised action: {:?}", action));
     match action {
         Action::Log {} => {
-            model
-                .backend
-                .action_log("Logging a message at the beginning of the handler.");
+            model.action_log("Logging a message at the beginning of the handler.");
 
-            model.backend.action_log("Sleeping for 1 second");
+            model.action_log("Sleeping for 1 second");
             thread::sleep(time::Duration::from_secs(1));
 
-            model.backend.action_log("Sleeping for another second");
+            model.action_log("Sleeping for another second");
             thread::sleep(time::Duration::from_secs(1));
 
-            model.backend.action_log("Done!");
+            model.action_log("Done!");
 
             Ok(HashMap::new())
         }
@@ -75,11 +73,9 @@ fn action_handler(model: Model<impl Backend, Config>, action: Action) -> ActionR
             string_with_default,
             fail,
         } => {
-            model.backend.action_log(&format!("string = {:?}", string));
-            model
-                .backend
-                .action_log(&format!("string-with-default = {:?}", string_with_default));
-            model.backend.action_log(&format!("fail = {:?}", fail));
+            model.action_log(&format!("string = {:?}", string));
+            model.action_log(&format!("string-with-default = {:?}", string_with_default));
+            model.action_log(&format!("fail = {:?}", fail));
 
             let mut data = HashMap::new();
 
