@@ -45,8 +45,4 @@ and write up docs for what, how, why for all the functions here
 
 - add-metric
 
-## support server-side state
-
-- `state-*`
-
 ## support for pebble
