@@ -104,11 +104,9 @@ where
                 LogLevel::Debug,
             );
             let action: A = self.backend.action(action_name.as_str());
-
             let model = ActionModel::new(&self.backend, action);
 
             let result = (self.action_handler)(model);
-
             match result {
                 Ok(data) => {
                     self.backend.set_action_result(data);

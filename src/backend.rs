@@ -31,6 +31,8 @@ pub trait Backend {
         C: serde::de::DeserializeOwned;
     /// Set the unit status.
     fn set_status(&self, status: Status);
+    /// Set the application status. This can only be called from a leader unit.
+    fn set_app_status(&self, status: Status);
     /// Log a message to the action log. Only call this during an action event (ie. from the
     /// action handler function).
     fn action_log(&self, msg: &str);
@@ -69,6 +71,13 @@ impl Backend for JujuBackend {
     fn set_status(&self, status: Status) {
         Command::new("status-set")
             .args([status.name(), status.msg()])
+            .output()
+            .expect("failed to execute status-set");
+    }
+
+    fn set_app_status(&self, status: Status) {
+        Command::new("status-set")
+            .args(["--application", status.name(), status.msg()])
             .output()
             .expect("failed to execute status-set");
     }
