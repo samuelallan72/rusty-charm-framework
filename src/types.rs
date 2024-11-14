@@ -81,7 +81,7 @@ pub enum Event {
     Start,
     Stop,
     StorageAttached(String),
-    StorageDetatched(String),
+    StorageDetached(String),
     UpdateStatus,
     UpgradeCharm,
 }

@@ -52,12 +52,43 @@ where
             );
 
             let event = match hook_name.as_str() {
-                "install" => Event::Install,
+                "collect-metrics" => Event::CollectMetrics,
                 "config-changed" => Event::ConfigChanged,
+                "install" => Event::Install,
                 "remove" => Event::Remove,
                 "update-status" => Event::UpdateStatus,
                 "upgrade-charm" => Event::UpgradeCharm,
-                _ => Event::UpdateStatus, // TODO: other events
+                "leader-elected" => Event::LeaderElected,
+                "leader-settings-changed" => Event::LeaderSettingsChanged,
+                "pebble-custom-notice" => Event::PebbleCustomNotice,
+                "pre-series-upgrade" => Event::PreSeriesUpgrade,
+                "post-series-upgrade" => Event::PostSeriesUpgrade,
+                "secret-changed" => Event::SecretChanged,
+                "secret-expire" => Event::SecretExpire,
+                "secret-removed" => Event::SecretRemoved,
+                "secret-rotate" => Event::SecretRotate,
+                "start" => Event::Start,
+                "stop" => Event::Stop,
+                name => {
+                    if let Some(prefix) = name.strip_suffix("-relation-joined") {
+                        Event::RelationJoined(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-relation-broken") {
+                        Event::RelationBroken(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-relation-changed") {
+                        Event::RelationChanged(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-relation-created") {
+                        Event::RelationCreated(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-relation-departed") {
+                        Event::RelationDeparted(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-storage-attached") {
+                        Event::StorageAttached(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-storage-detached") {
+                        Event::StorageDetached(prefix.to_owned())
+                    } else {
+                        // TODO: proper error handling
+                        unimplemented!();
+                    }
+                }
             };
 
             let model = EventModel::new(&self.backend, event);
