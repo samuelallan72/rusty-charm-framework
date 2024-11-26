@@ -69,7 +69,7 @@ where
     /// ```
     pub fn leader(&self) -> Option<LeaderTools<'a, B>> {
         if self.backend.is_leader() {
-            Some(LeaderTools::new(&self.backend))
+            Some(LeaderTools::new(self.backend))
         } else {
             None
         }
@@ -272,11 +272,11 @@ where
     pub(crate) fn new(backend: &'a B, event: Event) -> Self {
         Self {
             event,
-            backend: &backend,
-            unit: Unit::new(&backend),
-            ports: PortManager::new(&backend),
-            status: StatusManager::new(&backend),
-            log: Logger::new(&backend),
+            backend,
+            unit: Unit::new(backend),
+            ports: PortManager::new(backend),
+            status: StatusManager::new(backend),
+            log: Logger::new(backend),
         }
     }
 
@@ -308,11 +308,11 @@ where
     pub(crate) fn new(backend: &'a B, action: A) -> Self {
         Self {
             action,
-            backend: &backend,
-            unit: Unit::new(&backend),
-            ports: PortManager::new(&backend),
-            status: StatusManager::new(&backend),
-            log: Logger::new(&backend),
+            backend,
+            unit: Unit::new(backend),
+            ports: PortManager::new(backend),
+            status: StatusManager::new(backend),
+            log: Logger::new(backend),
         }
     }
 

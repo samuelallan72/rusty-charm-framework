@@ -6,8 +6,8 @@ use std::{
 
 use serde_json::{self, Map, Value};
 
-use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Status};
 use crate::error::Result;
+use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Status};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
