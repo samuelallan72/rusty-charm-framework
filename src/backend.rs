@@ -7,12 +7,13 @@ use std::{
 use serde_json::{self, Map, Value};
 
 use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Status};
+use crate::error::Result;
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
 /// they should not use this lower level backend.
 pub trait Backend {
-    fn leader_get(&self) -> HashMap<String, String>;
+    fn leader_get(&self) -> Result<HashMap<String, String>>;
     fn leader_set(&self, key: &str, value: &str);
     fn credentials(&self) -> JujuCredentials;
     fn reboot(&self, now: bool);
@@ -243,12 +244,11 @@ impl Backend for JujuBackend {
             .unwrap();
     }
 
-    fn leader_get(&self) -> HashMap<String, String> {
+    fn leader_get(&self) -> Result<HashMap<String, String>> {
         let output = Command::new("leader-get")
             .args(["--format", "json"])
-            .output()
-            .unwrap();
-        serde_json::from_slice(&output.stdout).unwrap()
+            .output()?;
+        Ok(serde_json::from_slice(&output.stdout)?)
     }
 }
 

@@ -2,6 +2,7 @@ use crate::types::{Event, LogLevel, Status};
 use std::collections::HashMap;
 
 use crate::backend::Backend;
+use crate::error::Result;
 
 pub struct PortManager<'a, B> {
     backend: &'a B,
@@ -342,7 +343,7 @@ where
         self.backend.leader_set(key, value)
     }
 
-    pub fn get(&self) -> HashMap<String, String> {
+    pub fn get(&self) -> Result<HashMap<String, String>> {
         self.backend.leader_get()
     }
 }
