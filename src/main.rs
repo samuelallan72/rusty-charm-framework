@@ -2,6 +2,7 @@
 // No framework lib code should go here.
 use rusty_charm_framework::{
     backend::{Backend, JujuBackend},
+    error::Result,
     model::{ActionModel, EventModel},
     types::{ActionResult, ActionResultKey, ActionValue, Event, Status},
     Framework,
@@ -30,7 +31,7 @@ struct Config {
     region: String,
 }
 
-fn event_handler(model: EventModel<impl Backend>) -> Status {
+fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
     let config: Config = model.unit.config();
     model
         .log
@@ -38,9 +39,9 @@ fn event_handler(model: EventModel<impl Backend>) -> Status {
     match model.event {
         Event::UpdateStatus => {
             if config.region.is_empty() {
-                return Status::Blocked("region option cannot be empty");
+                return Ok(Status::Blocked("region option cannot be empty"));
             } else {
-                return Status::Active("");
+                return Ok(Status::Active(""));
             }
         }
         Event::Install => {
@@ -49,10 +50,10 @@ fn event_handler(model: EventModel<impl Backend>) -> Status {
         _ => {}
     }
 
-    return Status::Active("all good (probably)");
+    return Ok(Status::Active("all good (probably)"));
 }
 
-fn action_handler(model: ActionModel<Action, impl Backend>) -> ActionResult {
+fn action_handler(model: ActionModel<Action, impl Backend>) -> Result<ActionResult> {
     model
         .log
         .debug(&format!("deserialised action: {:?}", model.action));
@@ -68,7 +69,7 @@ fn action_handler(model: ActionModel<Action, impl Backend>) -> ActionResult {
 
             model.action_log("Done!");
 
-            Ok(HashMap::new())
+            Ok(Ok(HashMap::new()))
         }
         Action::EchoParams {
             ref string,
@@ -127,16 +128,19 @@ fn action_handler(model: ActionModel<Action, impl Backend>) -> ActionResult {
             );
 
             if fail {
-                Err(("this is the requested failure message".to_owned(), data))
+                Ok(Err((
+                    "this is the requested failure message".to_owned(),
+                    data,
+                )))
             } else {
-                Ok(data)
+                Ok(Ok(data))
             }
         }
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     // dependency injection for the framework for easier unit testing
     let charm = Framework::new(JujuBackend {}, event_handler, action_handler);
-    charm.execute();
+    charm.execute()
 }

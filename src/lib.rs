@@ -4,13 +4,15 @@ pub mod model;
 pub mod types;
 
 use backend::Backend;
+use error::Result;
 use model::{ActionModel, EventModel};
-use types::{Event, LogLevel};
+use types::{ActionResult, Event, LogLevel, Status};
 
 pub struct Framework<A, B> {
     backend: B,
-    event_handler: fn(EventModel<B>) -> types::Status,
-    action_handler: fn(ActionModel<A, B>) -> types::ActionResult,
+    event_handler: fn(EventModel<B>) -> Result<Status>,
+    // TODO: nested result isn't very ergonomic or readable
+    action_handler: fn(ActionModel<A, B>) -> Result<ActionResult>,
 }
 
 impl<A, B> Framework<A, B>
@@ -20,8 +22,8 @@ where
 {
     pub fn new(
         backend: B,
-        event_handler: fn(EventModel<B>) -> types::Status,
-        action_handler: fn(ActionModel<A, B>) -> types::ActionResult,
+        event_handler: fn(EventModel<B>) -> Result<Status>,
+        action_handler: fn(ActionModel<A, B>) -> Result<ActionResult>,
     ) -> Self {
         Self {
             backend,
@@ -37,7 +39,7 @@ where
     /// The event handler may explicitly set a status during execution.
     /// This may be useful in the case of a long running hook (eg. set a maintenance ongoing status at
     /// the beginning).
-    pub fn execute(self) {
+    pub fn execute(self) -> Result<()> {
         // debug log all env vars for testing purposes
         for (key, value) in std::env::vars() {
             self.backend
@@ -94,8 +96,8 @@ where
 
             let model = EventModel::new(&self.backend, event);
 
-            (self.event_handler)(model);
-            return;
+            (self.event_handler)(model)?;
+            return Ok(());
         }
 
         let action_name = self.backend.action_name();
@@ -107,7 +109,7 @@ where
             let action: A = self.backend.action(action_name.as_str());
             let model = ActionModel::new(&self.backend, action);
 
-            let result = (self.action_handler)(model);
+            let result = (self.action_handler)(model)?;
             match result {
                 Ok(data) => {
                     self.backend.set_action_result(data);
@@ -118,5 +120,6 @@ where
                 }
             }
         }
+        Ok(())
     }
 }
