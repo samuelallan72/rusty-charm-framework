@@ -1,4 +1,8 @@
-use std::{collections::HashMap, process::Command};
+use std::{
+    collections::HashMap,
+    io::Write,
+    process::{Command, Stdio},
+};
 
 use serde_json::{self, Map, Value};
 
@@ -187,14 +191,23 @@ impl Backend for JujuBackend {
         serde_json::from_slice(&output.stdout).unwrap()
     }
 
-    // NOTE: could use file from stdin if need to save large state.
-    // A possible optimisation for the future.
+    // NOTE: setting the unit state will not reflect in the state returned from state-get
+    // until the next hook invocation.
     fn set_unit_state(&self, key: &str, value: &str) {
-        // TODO: limit key to not contain `=`?
-        Command::new("state-set")
-            .args([&format!("{key}={value}")])
-            .output()
+        let process = Command::new("state-set")
+            .args(["--file", "-"])
+            .stdin(Stdio::piped())
+            .spawn()
             .unwrap();
+
+        let json_data = Value::Object({
+            let mut map = Map::new();
+            map.insert(key.to_owned(), Value::String(value.to_owned()));
+            map
+        });
+        let data = serde_json::to_vec(&json_data).unwrap();
+        let mut stdin = process.stdin.expect("Failed to open stdin");
+        stdin.write_all(&data).expect("Failed to write to stdin");
     }
 
     fn delete_unit_state(&self, key: &str) {

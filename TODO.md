@@ -1,3 +1,8 @@
+## set up a template that doesn't require charmcraft
+
+- cross-arch builds in rust?
+- build.rs that sorts it out for you?
+
 ## Remove the test charm once a real charm is implemented for it
 
 ## support relations
