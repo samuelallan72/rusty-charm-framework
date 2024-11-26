@@ -5,8 +5,8 @@ pub enum Error {
 
     #[error("json deserialization error: {0}")]
     JsonError(#[from] serde_json::error::Error),
-    //     #[error("error: {0}")]
-    //     Generic(#[from] String),
+    // TODO: how to support arbitrary errors with `?` syntax from the user code in event handlers?
+    // Maybe `anyhow` lib is better suited for this?
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
