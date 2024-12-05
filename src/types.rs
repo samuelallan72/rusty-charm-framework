@@ -98,8 +98,9 @@ pub type ActionResult =
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ActionResultKey(String);
 
-static ACTION_KEY_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[a-z](:?[a-z0-9.-]*[a-z])*").unwrap());
+static ACTION_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"[a-z](:?[a-z0-9.-]*[a-z])*").expect("hardcoded regex in codebase was invalid")
+});
 
 impl TryFrom<String> for ActionResultKey {
     type Error = String;

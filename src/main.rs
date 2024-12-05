@@ -35,7 +35,7 @@ fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
     let config: Config = model.unit.config()?;
     model
         .log
-        .info(format!("region config = {}", config.region).as_str());
+        .info(format!("region config = {}", config.region).as_str())?;
     match model.event {
         Event::UpdateStatus => {
             if config.region.is_empty() {
@@ -45,7 +45,7 @@ fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
             }
         }
         Event::Install => {
-            model.status.active("Install hook completed");
+            model.status.active("Install hook completed")?;
         }
         _ => {}
     }
@@ -56,18 +56,18 @@ fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
 fn action_handler(model: ActionModel<Action, impl Backend>) -> Result<ActionResult> {
     model
         .log
-        .debug(&format!("deserialised action: {:?}", model.action));
+        .debug(&format!("deserialised action: {:?}", model.action))?;
     match model.action {
         Action::Log {} => {
-            model.action_log("Logging a message at the beginning of the handler.");
+            model.action_log("Logging a message at the beginning of the handler.")?;
 
-            model.action_log("Sleeping for 1 second");
+            model.action_log("Sleeping for 1 second")?;
             thread::sleep(time::Duration::from_secs(1));
 
-            model.action_log("Sleeping for another second");
+            model.action_log("Sleeping for another second")?;
             thread::sleep(time::Duration::from_secs(1));
 
-            model.action_log("Done!");
+            model.action_log("Done!")?;
 
             Ok(Ok(HashMap::new()))
         }
@@ -76,9 +76,9 @@ fn action_handler(model: ActionModel<Action, impl Backend>) -> Result<ActionResu
             ref string_with_default,
             fail,
         } => {
-            model.action_log(&format!("string = {:?}", string));
-            model.action_log(&format!("string-with-default = {:?}", string_with_default));
-            model.action_log(&format!("fail = {:?}", fail));
+            model.action_log(&format!("string = {:?}", string))?;
+            model.action_log(&format!("string-with-default = {:?}", string_with_default))?;
+            model.action_log(&format!("fail = {:?}", fail))?;
 
             let mut data = HashMap::new();
 

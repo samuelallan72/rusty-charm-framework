@@ -44,16 +44,16 @@ where
         // debug log all env vars for testing purposes
         for (key, value) in std::env::vars() {
             self.backend
-                .log(format!("{key}: {value}").as_str(), LogLevel::Debug);
+                .log(format!("{key}: {value}").as_str(), LogLevel::Debug)?;
         }
 
         // ref. https://juju.is/docs/juju/charm-environment-variables for logic
-        let hook_name = self.backend.hook_name();
+        let hook_name = self.backend.hook_name()?;
         if !hook_name.is_empty() {
             self.backend.log(
                 format!("running handlers for {hook_name} hook").as_str(),
                 LogLevel::Debug,
-            );
+            )?;
 
             let event = match hook_name.as_str() {
                 "collect-metrics" => Event::CollectMetrics,
@@ -98,27 +98,27 @@ where
             let model = EventModel::new(&self.backend, event);
 
             let status = (self.event_handler)(model)?;
-            self.backend.set_status(status);
+            self.backend.set_status(status)?;
             return Ok(());
         }
 
-        let action_name = self.backend.action_name();
+        let action_name = self.backend.action_name()?;
         if !action_name.is_empty() {
             self.backend.log(
                 format!("running handler for {action_name} action").as_str(),
                 LogLevel::Debug,
-            );
-            let action: A = self.backend.action(action_name.as_str());
+            )?;
+            let action: A = self.backend.action(action_name.as_str())?;
             let model = ActionModel::new(&self.backend, action);
 
             let result = (self.action_handler)(model)?;
             match result {
                 Ok(data) => {
-                    self.backend.set_action_result(data);
+                    self.backend.set_action_result(data)?;
                 }
                 Err((msg, data)) => {
-                    self.backend.set_action_fail(&msg);
-                    self.backend.set_action_result(data);
+                    self.backend.set_action_fail(&msg)?;
+                    self.backend.set_action_result(data)?;
                 }
             }
         }

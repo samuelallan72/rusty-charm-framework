@@ -16,15 +16,15 @@ where
         Self { backend }
     }
 
-    pub fn ports(&self) -> Vec<String> {
+    pub fn ports(&self) -> Result<Vec<String>> {
         self.backend.opened_ports()
     }
 
-    pub fn open_port(&self, port: &str, endpoints: Vec<&str>) {
+    pub fn open_port(&self, port: &str, endpoints: Vec<&str>) -> Result<()> {
         self.backend.open_port(port, endpoints)
     }
 
-    pub fn close_port(&self, port: &str, endpoints: Vec<&str>) {
+    pub fn close_port(&self, port: &str, endpoints: Vec<&str>) -> Result<()> {
         self.backend.close_port(port, endpoints)
     }
 }
@@ -67,11 +67,11 @@ where
     /// ```
     /// let is_leader: bool = model.unit.leader().is_some();
     /// ```
-    pub fn leader(&self) -> Option<LeaderTools<'a, B>> {
-        if self.backend.is_leader() {
-            Some(LeaderTools::new(self.backend))
+    pub fn leader(&self) -> Result<Option<LeaderTools<'a, B>>> {
+        if self.backend.is_leader()? {
+            Ok(Some(LeaderTools::new(self.backend)))
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -82,12 +82,12 @@ where
         self.backend.config()
     }
 
-    pub fn resource_path(&self, name: &str) -> String {
+    pub fn resource_path(&self, name: &str) -> Result<String> {
         self.backend.resource_path(name)
     }
 
     /// Set the workload application version.
-    pub fn set_application_version(&self, version: &str) {
+    pub fn set_application_version(&self, version: &str) -> Result<()> {
         self.backend.set_application_version(version)
     }
 }
@@ -122,19 +122,19 @@ where
     /// Changes to the returned hashmap are not updated server-side;
     /// use `UnitStateManager.set(key, value)` or `UnitStateManager.del(key)` to persist
     /// changes.
-    pub fn read(&self) -> HashMap<String, String> {
+    pub fn read(&self) -> Result<HashMap<String, String>> {
         self.backend.get_unit_state()
     }
 
     /// Set `key` to `value` in the server-side state.
     /// Uses the `state-set` hook-tool.
-    pub fn set(&self, key: &str, value: &str) {
+    pub fn set(&self, key: &str, value: &str) -> Result<()> {
         self.backend.set_unit_state(key, value)
     }
 
     /// Delete a `key` from the server-side state.
     /// Uses the `state-delete` hook-tool.
-    pub fn del(&self, key: &str) {
+    pub fn del(&self, key: &str) -> Result<()> {
         self.backend.delete_unit_state(key)
     }
 }
@@ -189,7 +189,7 @@ where
     /// ```
     /// model.status.active("");
     /// ```
-    pub fn active(&self, msg: &str) {
+    pub fn active(&self, msg: &str) -> Result<()> {
         self.backend.set_status(Status::Active(msg))
     }
 
@@ -198,7 +198,7 @@ where
     /// ```
     /// model.status.blocked("a relation to a database is required");
     /// ```
-    pub fn blocked(&self, msg: &str) {
+    pub fn blocked(&self, msg: &str) -> Result<()> {
         self.backend.set_status(Status::Blocked(msg))
     }
 
@@ -207,7 +207,7 @@ where
     /// ```
     /// model.status.maintenance("migrating db tables");
     /// ```
-    pub fn maintenance(&self, msg: &str) {
+    pub fn maintenance(&self, msg: &str) -> Result<()> {
         self.backend.set_status(Status::Maintenance(msg))
     }
 
@@ -217,7 +217,7 @@ where
     /// ```
     /// model.status.waiting("db is connected but not ready yet");
     /// ```
-    pub fn waiting(&self, msg: &str) {
+    pub fn waiting(&self, msg: &str) -> Result<()> {
         self.backend.set_status(Status::Waiting(msg))
     }
 }
@@ -234,19 +234,19 @@ where
         Self { backend }
     }
 
-    pub fn debug(&self, msg: &str) {
+    pub fn debug(&self, msg: &str) -> Result<()> {
         self.backend.log(msg, LogLevel::Debug)
     }
 
-    pub fn info(&self, msg: &str) {
+    pub fn info(&self, msg: &str) -> Result<()> {
         self.backend.log(msg, LogLevel::Info)
     }
 
-    pub fn warn(&self, msg: &str) {
+    pub fn warn(&self, msg: &str) -> Result<()> {
         self.backend.log(msg, LogLevel::Warning)
     }
 
-    pub fn error(&self, msg: &str) {
+    pub fn error(&self, msg: &str) -> Result<()> {
         self.backend.log(msg, LogLevel::Error)
     }
 }
@@ -282,11 +282,11 @@ where
 
     // these can only be called in an event hook
 
-    pub fn reboot(&self) {
+    pub fn reboot(&self) -> Result<()> {
         self.backend.reboot(false)
     }
 
-    pub fn reboot_now(&self) {
+    pub fn reboot_now(&self) -> Result<()> {
         self.backend.reboot(true)
     }
 }
@@ -318,7 +318,7 @@ where
 
     // these can only be called in an action
 
-    pub fn action_log(&self, msg: &str) {
+    pub fn action_log(&self, msg: &str) -> Result<()> {
         self.backend.action_log(msg)
     }
 }
@@ -339,7 +339,7 @@ where
         }
     }
 
-    pub fn set(&self, key: &str, value: &str) {
+    pub fn set(&self, key: &str, value: &str) -> Result<()> {
         self.backend.leader_set(key, value)
     }
 
@@ -360,19 +360,19 @@ where
         Self { backend }
     }
 
-    pub fn active(&self, msg: &str) {
+    pub fn active(&self, msg: &str) -> Result<()> {
         self.backend.set_app_status(Status::Active(msg))
     }
 
-    pub fn blocked(&self, msg: &str) {
+    pub fn blocked(&self, msg: &str) -> Result<()> {
         self.backend.set_app_status(Status::Blocked(msg))
     }
 
-    pub fn maintenance(&self, msg: &str) {
+    pub fn maintenance(&self, msg: &str) -> Result<()> {
         self.backend.set_app_status(Status::Maintenance(msg))
     }
 
-    pub fn waiting(&self, msg: &str) {
+    pub fn waiting(&self, msg: &str) -> Result<()> {
         self.backend.set_app_status(Status::Waiting(msg))
     }
 }

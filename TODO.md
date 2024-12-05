@@ -11,10 +11,6 @@ top level: requires and provides
 next level: named endpoint. each endpoint can have multiple applications connected(?)
   does an endpoint need to be unique across requires and provides?
 
-## figure out error handling
-
-remove all unwraps and expects.
-
 ## Support application and unit data bags
 
 ## encode all metadata.yaml content in the framework
