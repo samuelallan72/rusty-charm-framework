@@ -75,7 +75,7 @@ where
         }
     }
 
-    pub fn config<C>(&self) -> C
+    pub fn config<C>(&self) -> Result<C>
     where
         C: serde::de::DeserializeOwned,
     {

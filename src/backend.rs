@@ -31,7 +31,7 @@ pub trait Backend {
     where
         A: serde::de::DeserializeOwned;
     /// Retrieve the charm's current config as something that can be deserialised.
-    fn config<C>(&self) -> C
+    fn config<C>(&self) -> Result<C>
     where
         C: serde::de::DeserializeOwned;
     /// Set the unit status.
@@ -62,15 +62,14 @@ impl Backend for JujuBackend {
             .expect("failed to execute action-log");
     }
 
-    fn config<C>(&self) -> C
+    fn config<C>(&self) -> Result<C>
     where
         C: serde::de::DeserializeOwned,
     {
         let output = Command::new("config-get")
             .args(["--format", "json", "--all"])
-            .output()
-            .expect("failed to execute config-get");
-        serde_json::from_slice::<C>(&output.stdout).unwrap()
+            .output()?;
+        Ok(serde_json::from_slice::<C>(&output.stdout)?)
     }
 
     fn set_status(&self, status: Status) {

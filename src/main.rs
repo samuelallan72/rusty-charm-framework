@@ -32,7 +32,7 @@ struct Config {
 }
 
 fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
-    let config: Config = model.unit.config();
+    let config: Config = model.unit.config()?;
     model
         .log
         .info(format!("region config = {}", config.region).as_str());
