@@ -1,8 +1,8 @@
 // This is a test charm using the charm framework.
 // No framework lib code should go here.
+use anyhow::Result;
 use rusty_charm_framework::{
     backend::{Backend, JujuBackend},
-    error::Result,
     model::{ActionModel, EventModel},
     types::{ActionResult, ActionResultKey, ActionValue, Event, Status},
     Framework,

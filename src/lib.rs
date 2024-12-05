@@ -1,10 +1,11 @@
+use anyhow::Result;
+
 pub mod backend;
 pub mod error;
 pub mod model;
 pub mod types;
 
 use backend::Backend;
-use error::Result;
 use model::{ActionModel, EventModel};
 use types::{ActionResult, Event, LogLevel, Status};
 
@@ -96,7 +97,8 @@ where
 
             let model = EventModel::new(&self.backend, event);
 
-            (self.event_handler)(model)?;
+            let status = (self.event_handler)(model)?;
+            self.backend.set_status(status);
             return Ok(());
         }
 
