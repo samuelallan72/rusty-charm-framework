@@ -15,7 +15,7 @@ pub enum Status<'a> {
     Waiting(&'a str),
 }
 
-impl<'a> Status<'a> {
+impl Status<'_> {
     pub fn name(&self) -> &str {
         match self {
             Status::Active(_) => "active",

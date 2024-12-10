@@ -50,7 +50,7 @@ fn event_handler(model: EventModel<impl Backend>) -> Result<Status> {
         _ => {}
     }
 
-    return Ok(Status::Active("all good (probably)"));
+    Ok(Status::Active("all good (probably)"))
 }
 
 fn action_handler(model: ActionModel<Action, impl Backend>) -> Result<ActionResult> {
