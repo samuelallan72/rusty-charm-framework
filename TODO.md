@@ -78,3 +78,8 @@ Not sure how it works with key validation - can a key contain an `=` character o
 ## Check for support for types other than string for state/leader-set/etc.
 
 ## Define minimum supported juju version
+
+## Runtime populating metadata
+
+`metadata.yaml` is included with the charm, so the charm can read the metadata at runtime,
+and populate local things like building a data structure of available relations.
