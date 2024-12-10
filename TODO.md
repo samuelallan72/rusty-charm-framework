@@ -76,3 +76,5 @@ This should be more reliable.
 Not sure how it works with key validation - can a key contain an `=` character or not?
 
 ## Check for support for types other than string for state/leader-set/etc.
+
+## Define minimum supported juju version

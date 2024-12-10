@@ -108,7 +108,7 @@ where
                 format!("running handler for {action_name} action").as_str(),
                 LogLevel::Debug,
             )?;
-            let action: A = self.backend.action(action_name.as_str())?;
+            let action: A = self.backend.action()?;
             let model = ActionModel::new(&self.backend, action);
 
             let result = (self.action_handler)(model)?;

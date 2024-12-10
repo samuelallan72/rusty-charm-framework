@@ -15,6 +15,10 @@ bases:
         architectures:
           - amd64
 
+requires:
+  database:
+    interface: postgresql_client
+
 parts:
   build:
     plugin: rust

@@ -24,10 +24,7 @@ pub trait Backend {
     fn hook_name(&self) -> Result<String>;
     /// Log a message to the juju log, at the desired log level.
     fn log(&self, msg: &str, level: LogLevel) -> Result<()>;
-    /// Build an action struct, given the action name.
-    /// The method should pull in the the action params and return something that can be
-    /// deserialised into the desired action struct.
-    fn action<A>(&self, name: &str) -> Result<A>
+    fn action<A>(&self) -> Result<A>
     where
         A: serde::de::DeserializeOwned;
     /// Retrieve the charm's current config as something that can be deserialised.
@@ -91,10 +88,11 @@ impl Backend for JujuBackend {
         Ok(())
     }
 
-    fn action<A>(&self, name: &str) -> Result<A>
+    fn action<A>(&self) -> Result<A>
     where
         A: serde::de::DeserializeOwned,
     {
+        let name = self.action_name()?;
         let output = Command::new("action-get")
             .args(["--format", "json"])
             .output()?;
