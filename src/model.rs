@@ -1,4 +1,4 @@
-use crate::types::{Event, LogLevel, Status};
+use crate::types::{Event, LogLevel, RelatedApp, RelatedUnit, Status};
 use std::collections::HashMap;
 
 use crate::backend::Backend;
@@ -89,6 +89,10 @@ where
     /// Set the workload application version.
     pub fn set_application_version(&self, version: &str) -> Result<()> {
         self.backend.set_application_version(version)
+    }
+
+    pub fn leader_get(&self) -> Result<HashMap<String, String>> {
+        self.backend.leader_get()
     }
 }
 
@@ -255,6 +259,7 @@ pub struct EventModel<'a, B> {
     backend: &'a B,
     pub event: Event,
     pub unit: Unit<'a, B>,
+    pub relations: Relations<'a, B>,
     pub ports: PortManager<'a, B>,
     /// Contains methods to update the unit status.
     /// Usually, the event handler should not need to use these;
@@ -277,6 +282,7 @@ where
             ports: PortManager::new(backend),
             status: StatusManager::new(backend),
             log: Logger::new(backend),
+            relations: Relations::new(backend),
         }
     }
 
@@ -299,6 +305,7 @@ pub struct ActionModel<'a, A, B> {
     /// Contains methods to update the unit status.
     pub status: StatusManager<'a, B>,
     pub log: Logger<'a, B>,
+    pub relations: Relations<'a, B>,
 }
 
 impl<'a, A, B> ActionModel<'a, A, B>
@@ -313,6 +320,7 @@ where
             ports: PortManager::new(backend),
             status: StatusManager::new(backend),
             log: Logger::new(backend),
+            relations: Relations::new(backend),
         }
     }
 
@@ -339,12 +347,12 @@ where
         }
     }
 
-    pub fn set(&self, key: &str, value: &str) -> Result<()> {
+    pub fn leader_set(&self, key: &str, value: &str) -> Result<()> {
         self.backend.leader_set(key, value)
     }
 
-    pub fn get(&self) -> Result<HashMap<String, String>> {
-        self.backend.leader_get()
+    pub fn relation_set_app(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()> {
+        self.backend.relation_set_app(app, key, value)
     }
 }
 
@@ -374,5 +382,34 @@ where
 
     pub fn waiting(&self, msg: &str) -> Result<()> {
         self.backend.set_app_status(Status::Waiting(msg))
+    }
+}
+
+pub struct Relations<'a, B> {
+    backend: &'a B,
+}
+
+impl<'a, B> Relations<'a, B>
+where
+    B: Backend,
+{
+    fn new(backend: &'a B) -> Self {
+        Self { backend }
+    }
+
+    pub fn apps(&self, endpoint: &str) -> Result<Vec<RelatedApp>> {
+        self.backend.related_apps(endpoint)
+    }
+
+    pub fn app_settings(&self, app: &RelatedApp) -> Result<HashMap<String, String>> {
+        self.backend.relation_get_app(app)
+    }
+
+    pub fn unit_settings(&self, unit: &RelatedUnit) -> Result<HashMap<String, String>> {
+        self.backend.relation_get_unit(unit)
+    }
+
+    pub fn set_unit(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()> {
+        self.backend.relation_set_unit(app, key, value)
     }
 }

@@ -161,20 +161,33 @@ pub struct JujuCredentials {
 }
 
 // to build this, you will need to run:
-// $ relation-ids <relation_name>
+// $ relation-ids <endpoint>
 // --> pick a relation id
+// $ relation-list -r <relation_id> --app
+// --> this is the application name
 // $ relation-list -r <relation_id>
 // --> these are the unit names
-// note: there could be no unit names, but an application name, if the application is related but
-// not finished installing.
+// note: there could be an application name, but no unit names,
+// if the application is related but not finished installing.
 pub struct RelatedApp {
-    /// The integration endpoint as defined in the local charm's metadata.
-    pub relation_name: String,
-    /// Unique ID for this relation. It should be unique across the juju model.
-    pub relation_id: String,
     /// Name of the deployed application (not the charm name).
-    pub app: String,
-    /// List of unit names.
+    pub name: String,
+    /// List of units.
     /// If this is for a peer relation, the local unit's name will not be included.
-    pub units: Vec<String>,
+    pub units: Vec<RelatedUnit>,
+    /// The integration endpoint (relation name) as defined in the local charm's metadata.
+    pub endpoint: String,
+    /// Unique ID for this relation. It should be unique across the juju model.
+    pub(crate) relation_id: String,
+}
+
+pub struct RelatedUnit {
+    /// Name of the unit
+    pub name: String,
+    /// Name of the deployed application (not the charm name).
+    pub app_name: String,
+    /// The integration endpoint (relation name) as defined in the local charm's metadata.
+    pub endpoint: String,
+    /// Unique ID for this relation. It should be unique across the juju model.
+    pub(crate) relation_id: String,
 }

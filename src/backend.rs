@@ -6,8 +6,11 @@ use std::{
 
 use serde_json::{self, Map, Value};
 
-use crate::error::{Error, Result};
 use crate::types::{ActionResultKey, ActionValue, JujuCredentials, LogLevel, Status};
+use crate::{
+    error::{Error, Result},
+    types::{RelatedApp, RelatedUnit},
+};
 
 /// This trait is designed to allow for using a different backend for testing or to be mocked.
 /// The charm event handlers should use the `CharmBackend` provided by the state;
@@ -46,10 +49,53 @@ pub trait Backend {
     fn set_unit_state(&self, key: &str, value: &str) -> Result<()>;
     fn delete_unit_state(&self, key: &str) -> Result<()>;
     fn resource_path(&self, name: &str) -> Result<String>;
+
+    /// Get all apps related on the given `endpoint`.
+    fn related_apps(&self, endpoint: &str) -> Result<Vec<RelatedApp>>;
+
+    /// Get relation data for the remote related application.
+    fn relation_get_app(&self, app: &RelatedApp) -> Result<HashMap<String, String>>;
+
+    /// Get relation data for the remote related unit.
+    fn relation_get_unit(&self, unit: &RelatedUnit) -> Result<HashMap<String, String>>;
+
+    /// Set data on the relation on behalf of this unit.
+    /// These key/values can be read by the related application,
+    /// when the related application calls relation-get with this unit's name.
+    fn relation_set_unit(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()>;
+
+    /// Set data on the relation on behalf of this application.
+    /// Only the leader should call this method.
+    /// These key/values can be read by the related application,
+    /// when the related application calls relation-get with `--app`.
+    fn relation_set_app(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()>;
 }
 
 /// The real implementation for the backend.
 pub struct JujuBackend {}
+
+impl JujuBackend {
+    fn relation_set(&self, app: &RelatedApp, key: &str, value: &str, on_app: bool) -> Result<()> {
+        let mut args = vec!["--file", "-", "--relation", &app.relation_id];
+        if on_app {
+            args.push("--app");
+        }
+        let process = Command::new("relation-set")
+            .args(args)
+            .stdin(Stdio::piped())
+            .spawn()?;
+
+        let json_data = Value::Object({
+            let mut map = Map::new();
+            map.insert(key.to_owned(), Value::String(value.to_owned()));
+            map
+        });
+        let data = serde_json::to_vec(&json_data)?;
+        let mut stdin = process.stdin.ok_or(Error::StdinError())?;
+        stdin.write_all(&data)?;
+        Ok(())
+    }
+}
 
 impl Backend for JujuBackend {
     fn action_log(&self, msg: &str) -> Result<()> {
@@ -238,6 +284,87 @@ impl Backend for JujuBackend {
             .args(["--format", "json"])
             .output()?;
         Ok(serde_json::from_slice(&output.stdout)?)
+    }
+
+    fn related_apps(&self, endpoint: &str) -> Result<Vec<RelatedApp>> {
+        let relation_ids_output = Command::new("relation-ids")
+            .args(["--format", "json", endpoint])
+            .output()?;
+        let relation_ids: Vec<String> = serde_json::from_slice(&relation_ids_output.stdout)?;
+
+        let mut apps: Vec<RelatedApp> = vec![];
+        for relation_id in relation_ids {
+            let relation_list_output_app = Command::new("relation-list")
+                .args([
+                    "--format",
+                    "json",
+                    "--relation",
+                    relation_id.as_str(),
+                    "--app",
+                ])
+                .output()?;
+            let relation_list_output_units = Command::new("relation-list")
+                .args(["--format", "json", "--relation", relation_id.as_str()])
+                .output()?;
+
+            let app_name: String = serde_json::from_slice(&relation_list_output_app.stdout)?;
+            let unit_names: Vec<String> =
+                serde_json::from_slice(&relation_list_output_units.stdout)?;
+
+            apps.push(RelatedApp {
+                endpoint: endpoint.to_string(),
+                relation_id: relation_id.clone(),
+                name: app_name.clone(),
+                units: unit_names
+                    .into_iter()
+                    .map(|name| RelatedUnit {
+                        name,
+                        endpoint: endpoint.to_string(),
+                        relation_id: relation_id.clone(),
+                        app_name: app_name.clone(),
+                    })
+                    .collect(),
+            });
+        }
+
+        Ok(apps)
+    }
+
+    fn relation_get_app(&self, app: &RelatedApp) -> Result<HashMap<String, String>> {
+        let output = Command::new("relation-get")
+            .args([
+                "--format",
+                "json",
+                "--app",
+                "--relation",
+                &app.relation_id,
+                "-",
+                &app.name,
+            ])
+            .output()?;
+        Ok(serde_json::from_slice(&output.stdout)?)
+    }
+
+    fn relation_get_unit(&self, unit: &RelatedUnit) -> Result<HashMap<String, String>> {
+        let output = Command::new("relation-get")
+            .args([
+                "--format",
+                "json",
+                "--relation",
+                &unit.relation_id,
+                "-",
+                &unit.name,
+            ])
+            .output()?;
+        Ok(serde_json::from_slice(&output.stdout)?)
+    }
+
+    fn relation_set_unit(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()> {
+        self.relation_set(app, key, value, false)
+    }
+
+    fn relation_set_app(&self, app: &RelatedApp, key: &str, value: &str) -> Result<()> {
+        self.relation_set(app, key, value, true)
     }
 }
 
