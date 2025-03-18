@@ -3,17 +3,8 @@ name: rusty
 summary: test charm
 description: test charm description
 
-bases:
-  - build-on:
-    - name: ubuntu
-      channel: "22.04"
-      architectures:
-        - amd64
-    run-on:
-      - name: ubuntu
-        channel: "22.04"
-        architectures:
-          - amd64
+platforms:
+  ubuntu@24.04:amd64:
 
 requires:
   database:
@@ -22,7 +13,6 @@ requires:
 peers:
   others:
     interface: rusty-testing
-
 
 parts:
   build:
