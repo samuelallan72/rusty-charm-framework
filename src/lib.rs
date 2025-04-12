@@ -74,7 +74,9 @@ where
                 "start" => Event::Start,
                 "stop" => Event::Stop,
                 name => {
-                    if let Some(prefix) = name.strip_suffix("-relation-joined") {
+                    if let Some(prefix) = name.strip_suffix("-pebble-ready") {
+                        Event::PebbleReady(prefix.to_owned())
+                    } else if let Some(prefix) = name.strip_suffix("-relation-joined") {
                         Event::RelationJoined(prefix.to_owned())
                     } else if let Some(prefix) = name.strip_suffix("-relation-broken") {
                         Event::RelationBroken(prefix.to_owned())
